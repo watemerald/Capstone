@@ -32,7 +32,7 @@ def expand_vid_id(short_id: Union[bytes, str]) -> str:
     return match.group("full_id")
 
 
-vocabulary = pandas.read_csv("video-search/vocabulary.csv")
+vocabulary = pandas.read_csv("vocabulary.csv")
 
 
 def label_id_to_name(label: int) -> str:
