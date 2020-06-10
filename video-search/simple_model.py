@@ -194,49 +194,83 @@ def build_model() -> Model:
 
 
 def train():
+    """
+        Train the simple model
+    """
+
+    # Create a weights directory to save the checkpoint files
     if not os.path.exists("weights"):
         os.mkdir("weights")
-    batch = 10 * 1024
-    n_itr = 10
-    n_eph = 100
 
+    # The number of records per batch
+    batch = 10 * 1024
+
+    # Save the weights each n_itr iterations
+    n_itr = 10
+
+    n_epochs = 100
+
+    # Load the first validation TFRecord file to use in
+    # periodically evaluating performance
     _, x1_val, x2_val, y_val = next(tf_itr("val"))
 
+    # TODO: Load the last chackpoint weights to allow training interruptions
     model = build_model()
-    cnt = 0
+
+    # number of batches that have been processed
+    n = 0
+
     start = pendulum.now()
     fmt = start.format("Y-MM-DD hh:mm:ss")
     print(f"Started at {fmt}")
 
-    for e in range(n_eph):
+    for e in range(n_epochs):
         for d in tf_itr("train", batch):
             _, x1_trn, x2_trn, y_trn = d
             model.train_on_batch({"x1": x1_trn, "x2": x2_trn}, {"output": y_trn})
-            cnt += 1
-            if cnt % n_itr == 0:
+            n += 1
+            if n % n_itr == 0:
                 y_prd = model.predict(
                     {"x1": x1_val, "x2": x2_val}, verbose=False, batch_size=100
                 )
                 g = mean_ap(y_prd, y_val)
-                print("val mAP %0.5f; epoch: %d; iters: %d" % (g, e, cnt))
+                print(f"val mAP {g:0.5f}; epoch: {e:d}; iters: {n:d}")
+                # print("val mAP %0.5f; epoch: %d; iters: %d" % (g, e, n))
                 now = pendulum.now()
                 fmt = now.format("Y-MM-DD hh:mm:ss")
                 print(fmt)
-                model.save_weights("weights/%0.5f_%d_%d.h5" % (g, e, cnt))
+                model.save_weights(f"weights/{g:0.5f}_{e:d}_{n:d}.h5")
 
 
-def conv_pred(el):
-    t = 20
+def conv_pred(el, t: Optional[int] = None) -> str:
+    """
+        Convert a prediction to a formatted string
+        
+        Args:
+            el: the predictions
+            t: the number of top confidence labels to log (default: 20)
+        
+        Returns:
+            str: the formatted string
+    """
+    if t is None:
+        t = 20
     idx = np.argsort(el)[::-1]
-    return " ".join(["{} {:0.5f}".format(i, el[i]) for i in idx[:t]])
+    return " ".join([f"{i} {el[i]:0.5f}" for i in idx[:t]])
 
 
 def predict():
+    """
+        Make a prediction using the latest trained weights
+    """
     model = build_model()
 
     wfn = sorted(glob.glob("../weights/*.h5"))[-1]
     model.load_weights(wfn)
-    print("loaded weight file: %s" % wfn)
+    print(f"loaded weight file: {wfn}")
+
+    # Load the first batch from the test file
+    # TODO: use tf_itr to load all the test files
     idx, x1_val, x2_val, _ = next(tf_itr("test", 10 * 1024))
 
     ypd = model.predict({"x1": x1_val, "x2": x2_val}, verbose=1, batch_size=32)
