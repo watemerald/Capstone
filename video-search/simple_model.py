@@ -17,6 +17,7 @@ import os
 import pendulum
 from multiprocessing import Pool
 from typing import Iterator, Optional, Tuple, Iterator
+import re
 
 # Adapted from https://www.kaggle.com/drn01z3/keras-baseline-on-video-features-0-7941-lb/code
 
@@ -96,7 +97,7 @@ def mean_ap(pred: np.ndarray, actual: np.ndarray) -> float:
 
 
 def tf_itr(
-    tp: str = "test", batch: int = 1024
+    tp: str = "test", batch: int = 1024, skip: int = 0
 ) -> Iterator[Tuple[np.array, np.array, np.array, np.array,]]:
     """
     Iterate over TFRecords of a certain type
@@ -145,7 +146,11 @@ def tf_itr(
             # When the total number of ids reaches the batch number, yield the parsed values
             # to be processed later
             if len(ids) >= batch:
-                yield np.array(ids), np.array(aud), np.array(rgb), np.array(lbs)
+                # Every time a batch is finished, skip it if required
+                skip -= 1
+                if skip < 0:
+                    yield np.array(ids), np.array(aud), np.array(rgb), np.array(lbs)
+
                 ids, aud, rgb, lbs = [], [], [], []
 
 
@@ -193,9 +198,12 @@ def build_model() -> Model:
     return model
 
 
-def train():
+def train(load_model: bool = True):
     """
         Train the simple model
+
+        Args:
+            load_model: if true, load the latest weights file and train from it
     """
 
     # Create a weights directory to save the checkpoint files
@@ -219,13 +227,36 @@ def train():
 
     # number of batches that have been processed
     n = 0
+    # number of epochs that have passed
+    e_passed = 0
+
+    if load_model:
+        # Load the best performing weights
+        weights = glob.glob("weights/*.h5")
+
+        if len(weights) > 0:
+            wfn = sorted(weights)[-1]
+            model.load_weights(wfn)
+            print(f"loaded weight file: {wfn}")
+
+            # The weight file looks like this: weights/0.57366_0_20.h5
+            # Parse it out to get the current epoch and iteration number
+            match = re.match(r"weights/\d+\.\d+_(?P<epoch>\d+)_(?P<iter>\d+)\.h5", wfn)
+            (e_passed, n) = match.groups()
+
+            # Convert the matched strings to ints
+            e_passed = int(e_passed)
+            n = int(n)
 
     start = pendulum.now()
     fmt = start.format("Y-MM-DD hh:mm:ss")
     print(f"Started at {fmt}")
+    print(f"Starting at EPOCH {e_passed} iter {n}")
+    # How many batches to skip on first processed epoch
+    nskip = n
 
-    for e in range(n_epochs):
-        for d in tf_itr("train", batch):
+    for e in range(e_passed, n_epochs):
+        for d in tf_itr("train", batch=batch, skip=nskip):
             _, x1_trn, x2_trn, y_trn = d
             model.train_on_batch({"x1": x1_trn, "x2": x2_trn}, {"output": y_trn})
             n += 1
@@ -235,11 +266,13 @@ def train():
                 )
                 g = mean_ap(y_prd, y_val)
                 print(f"val mAP {g:0.5f}; epoch: {e:d}; iters: {n:d}")
-                # print("val mAP %0.5f; epoch: %d; iters: %d" % (g, e, n))
                 now = pendulum.now()
                 fmt = now.format("Y-MM-DD hh:mm:ss")
                 print(fmt)
                 model.save_weights(f"weights/{g:0.5f}_{e:d}_{n:d}.h5")
+
+        # Set to 0 to not skip any batches on further epocs
+        nskip = 0
 
 
 def conv_pred(el, t: Optional[int] = None) -> str:
@@ -265,7 +298,8 @@ def predict():
     """
     model = build_model()
 
-    wfn = sorted(glob.glob("../weights/*.h5"))[-1]
+    # Load the best performing weights
+    wfn = sorted(glob.glob("weights/*.h5"))[-1]
     model.load_weights(wfn)
     print(f"loaded weight file: {wfn}")
 
