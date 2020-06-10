@@ -249,7 +249,7 @@ def train(load_model: bool = True):
             n = int(n)
 
     start = pendulum.now()
-    fmt = start.format("Y-MM-DD hh:mm:ss")
+    fmt = start.format("Y-MM-DD HH:mm:ss")
     print(f"Started at {fmt}")
     print(f"Starting at EPOCH {e_passed} iter {n}")
     # How many batches to skip on first processed epoch
@@ -267,7 +267,7 @@ def train(load_model: bool = True):
                 g = mean_ap(y_prd, y_val)
                 print(f"val mAP {g:0.5f}; epoch: {e:d}; iters: {n:d}")
                 now = pendulum.now()
-                fmt = now.format("Y-MM-DD hh:mm:ss")
+                fmt = now.format("Y-MM-DD HH:mm:ss")
                 print(fmt)
                 model.save_weights(f"weights/{g:0.5f}_{e:d}_{n:d}.h5")
 
