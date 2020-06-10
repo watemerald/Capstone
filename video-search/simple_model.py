@@ -235,7 +235,7 @@ def train(load_model: bool = True):
         weights = glob.glob("weights/*.h5")
 
         if len(weights) > 0:
-            wfn = sorted(weights)[-1]
+            wfn = max(weights, key=os.path.getctime)
             model.load_weights(wfn)
             print(f"loaded weight file: {wfn}")
 
@@ -298,8 +298,9 @@ def predict():
     """
     model = build_model()
 
-    # Load the best performing weights
-    wfn = sorted(glob.glob("weights/*.h5"))[-1]
+    # Load the best newest weights
+    weights = glob.glob("weights/*.h5")
+    wfn = max(weights, key=os.path.getctime)
     model.load_weights(wfn)
     print(f"loaded weight file: {wfn}")
 
