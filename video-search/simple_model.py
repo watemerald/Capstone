@@ -222,13 +222,14 @@ def train(load_model: bool = True):
     # periodically evaluating performance
     _, x1_val, x2_val, y_val = next(tf_itr("val"))
 
-    # TODO: Load the last chackpoint weights to allow training interruptions
     model = build_model()
 
     # number of batches that have been processed
     n = 0
     # number of epochs that have passed
     e_passed = 0
+    # Number of iterations since epoch
+    ise = 0
 
     if load_model:
         # Load the best performing weights
@@ -241,38 +242,50 @@ def train(load_model: bool = True):
 
             # The weight file looks like this: weights/0.57366_0_20.h5
             # Parse it out to get the current epoch and iteration number
-            match = re.match(r"weights/\d+\.\d+_(?P<epoch>\d+)_(?P<iter>\d+)\.h5", wfn)
-            (e_passed, n) = match.groups()
+            match = re.match(
+                r"weights/\d+\.\d+_(?P<epoch>\d+)_(?P<iter>\d+)_(?P<ise>\d+)\.h5", wfn
+            )
+            (e_passed, n, ise) = match.groups()
 
             # Convert the matched strings to ints
             e_passed = int(e_passed)
             n = int(n)
+            ise = int(ise)
 
     start = pendulum.now()
     fmt = start.format("Y-MM-DD HH:mm:ss")
     print(f"Started at {fmt}")
     print(f"Starting at EPOCH {e_passed} iter {n}")
+
     # How many batches to skip on first processed epoch
-    nskip = n
+    nskip = ise
 
     for e in range(e_passed, n_epochs):
+
+        # Do batch training
         for d in tf_itr("train", batch=batch, skip=nskip):
             _, x1_trn, x2_trn, y_trn = d
             model.train_on_batch({"x1": x1_trn, "x2": x2_trn}, {"output": y_trn})
+
+            # Keep track of total number of iterations and iterations since epoch start
             n += 1
+            ise += 1
+
+            # Every n_itr batches evaluate performance and save weight files
             if n % n_itr == 0:
                 y_prd = model.predict(
                     {"x1": x1_val, "x2": x2_val}, verbose=False, batch_size=100
                 )
                 g = mean_ap(y_prd, y_val)
-                print(f"val mAP {g:0.5f}; epoch: {e:d}; iters: {n:d}")
+                print(f"val mAP {g:0.5f}; epoch: {e:d}; iters: {n:d}; ise: {ise:d}")
                 now = pendulum.now()
                 fmt = now.format("Y-MM-DD HH:mm:ss")
                 print(fmt)
-                model.save_weights(f"weights/{g:0.5f}_{e:d}_{n:d}.h5")
+                model.save_weights(f"weights/{g:0.5f}_{e:d}_{n:d}_{ise:d}.h5")
 
         # Set to 0 to not skip any batches on further epocs
         nskip = 0
+        ise = 0
 
 
 def conv_pred(el, t: Optional[int] = None) -> str:
