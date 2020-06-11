@@ -317,21 +317,32 @@ def predict():
     model.load_weights(wfn)
     print(f"loaded weight file: {wfn}")
 
-    # Load the first batch from the test file
-    # TODO: use tf_itr to load all the test files
-    idx, x1_val, x2_val, _ = next(tf_itr("test", 10 * 1024))
+    ids = []
+    ypd = []
 
-    ypd = model.predict({"x1": x1_val, "x2": x2_val}, verbose=1, batch_size=32)
-    del x1_val, x2_val
-
-    with Pool() as pool:
-        out = pool.map(conv_pred, list(ypd))
-
-    df = pd.DataFrame.from_dict({"VideoId": idx, "LabelConfidencePairs": out})
+    # Create empty prediction csv file
+    df = pd.DataFrame.from_dict({"VideoId": ids, "LabelConfidencePairs": ypd})
     df.to_csv(
         "subm1", header=True, index=False, columns=["VideoId", "LabelConfidencePairs"]
     )
 
+    for d in tf_itr("test", 10 * 1024):
+        idx, x1_val, x2_val, _ = d
+        ypd = model.predict({"x1": x1_val, "x2": x2_val}, verbose=1, batch_size=32)
+
+        with Pool() as pool:
+            out = pool.map(conv_pred, list(ypd))
+
+        # Append the results of the current batch to the output csv
+        df = pd.DataFrame.from_dict({"VideoId": idx, "LabelConfidencePairs": out})
+        df.to_csv(
+            "subm1",
+            header=False,
+            index=False,
+            columns=["VideoId", "LabelConfidencePairs"],
+            mode="a",
+        )
+
 
 if __name__ == "__main__":
-    train()
+    predict()
