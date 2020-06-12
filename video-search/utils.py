@@ -1,6 +1,8 @@
-import tensorflow as tf
 import os
 from functools import lru_cache
+
+import tensorflow as tf
+
 
 # Memoize the number of total records, as it's a very expensive operation to compute
 # Since there are only 3 types of records, no more cache is needed

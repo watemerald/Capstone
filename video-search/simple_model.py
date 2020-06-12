@@ -1,27 +1,52 @@
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import (
-    Input,
-    Dense,
-    BatchNormalization,
-    Dropout,
-    LeakyReLU,
-    concatenate,
-    Layer,
-)
-from tensorflow.keras.initializers import glorot_normal
-import tensorflow as tf
+import glob
+import logging
+import os
+import re
+from multiprocessing import Pool
+from typing import Iterator, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-import glob
-import os
 import pendulum
-from multiprocessing import Pool
-from typing import Iterator, Optional, Tuple, Iterator
-import re
+import tensorflow as tf
+from tensorflow.keras.initializers import glorot_normal
+from tensorflow.keras.layers import (
+    BatchNormalization,
+    Dense,
+    Dropout,
+    Input,
+    Layer,
+    LeakyReLU,
+    concatenate,
+)
+from tensorflow.keras.models import Model
 
 # Adapted from https://www.kaggle.com/drn01z3/keras-baseline-on-video-features-0-7941-lb/code
 
 FOLDER = "/media/watemerald/Seagate/data/yt8m/video/"
+
+
+def create_logger(name: str, log_file: str) -> logging.Logger:
+    log = logging.getLogger(name)
+    log.setLevel(logging.INFO)
+
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    log.addHandler(handler)
+
+    # create error file handler and set level to error
+    handler = logging.FileHandler(log_file, "w")
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    log.addHandler(handler)
+
+    return log
+
+
+log = create_logger(__name__, "file.log")
 
 
 def ap_at_n(data: Tuple[np.ndarray, np.ndarray], n: Optional[int] = 20,) -> float:
@@ -113,7 +138,7 @@ def tf_itr(
     # TFRecord files
     tfiles = sorted(glob.glob(os.path.join(FOLDER, f"{tp}*tfrecord")))
 
-    print(f"total files in {tp} {len(tfiles)}")
+    log.info(f"total files in {tp} {len(tfiles)}")
 
     # Initialize the lists to store the ids, audio & visual information, and labels for the current batch
     ids, aud, rgb, lbs = [], [], [], []
@@ -238,7 +263,7 @@ def train(load_model: bool = True):
         if len(weights) > 0:
             wfn = max(weights, key=os.path.getctime)
             model.load_weights(wfn)
-            print(f"loaded weight file: {wfn}")
+            log.info(f"loaded weight file: {wfn}")
 
             # The weight file looks like this: weights/0.57366_0_20.h5
             # Parse it out to get the current epoch and iteration number
@@ -254,8 +279,8 @@ def train(load_model: bool = True):
 
     start = pendulum.now()
     fmt = start.format("Y-MM-DD HH:mm:ss")
-    print(f"Started at {fmt}")
-    print(f"Starting at EPOCH {e_passed} iter {n}")
+    log.info(f"Started at {fmt}")
+    log.info(f"Starting at EPOCH {e_passed} iter {n}")
 
     # How many batches to skip on first processed epoch
     nskip = ise
@@ -277,10 +302,10 @@ def train(load_model: bool = True):
                     {"x1": x1_val, "x2": x2_val}, verbose=False, batch_size=100
                 )
                 g = mean_ap(y_prd, y_val)
-                print(f"val mAP {g:0.5f}; epoch: {e:d}; iters: {n:d}; ise: {ise:d}")
+                log.info(f"val mAP {g:0.5f}; epoch: {e:d}; iters: {n:d}; ise: {ise:d}")
                 now = pendulum.now()
                 fmt = now.format("Y-MM-DD HH:mm:ss")
-                print(fmt)
+                log.info(fmt)
                 model.save_weights(f"weights/{g:0.5f}_{e:d}_{n:d}_{ise:d}.h5")
 
         # Set to 0 to not skip any batches on further epocs
@@ -315,7 +340,7 @@ def predict():
     weights = glob.glob("weights/*.h5")
     wfn = max(weights, key=os.path.getctime)
     model.load_weights(wfn)
-    print(f"loaded weight file: {wfn}")
+    log.info(f"loaded weight file: {wfn}")
 
     ids = []
     ypd = []
@@ -345,4 +370,4 @@ def predict():
 
 
 if __name__ == "__main__":
-    predict()
+    train()
