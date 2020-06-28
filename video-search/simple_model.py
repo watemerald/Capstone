@@ -21,14 +21,52 @@ from tensorflow.keras.layers import (
 from tensorflow.keras.models import Model
 from tensorboard.plugins.hparams import api as hp
 
-from .utils import create_logger
+try:
+    from .utils import create_logger
+except Exception:
+    import logging
+
+    def create_logger(name: str, log_file: str) -> logging.Logger:
+        log = logging.getLogger(name)
+        log.setLevel(logging.INFO)
+
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.INFO)
+        formatter = logging.Formatter("%(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
+        log.addHandler(handler)
+
+        # create error file handler and set level to error
+        handler = logging.FileHandler(log_file, "w")
+        handler.setLevel(logging.INFO)
+        formatter = logging.Formatter("%(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
+        log.addHandler(handler)
+
+        return log
+
 
 # Adapted from https://www.kaggle.com/drn01z3/keras-baseline-on-video-features-0-7941-lb/code
 
 FOLDER = "/media/watemerald/Seagate/data/yt8m/video/"
 
+BATCH_SIZE = 10 * 1024
+
+# Number of epochs
+N_EPOCHS = 100
+
+# Save the weights every N iterations
+N_ITR = 10
+
 
 log = create_logger(__name__, "file.log")
+
+TENSORBOARD_LOG_DIR = "logs/simple"
+WEIGHTS_DIR = os.path.join(TENSORBOARD_LOG_DIR, "weights/")
+
+tensorboard = tf.keras.callbacks.TensorBoard(
+    log_dir=TENSORBOARD_LOG_DIR, histogram_freq=0, write_graph=True,
+)
 
 
 def ap_at_n(data: Tuple[np.ndarray, np.ndarray], n: Optional[int] = 20,) -> float:
@@ -214,22 +252,23 @@ def train(load_model: bool = True):
     """
 
     # Create a weights directory to save the checkpoint files
-    if not os.path.exists("weights"):
-        os.mkdir("weights")
+    if not os.path.exists(WEIGHTS_DIR):
+        os.makedirs(WEIGHTS_DIR)
 
     # The number of records per batch
-    batch = 10 * 1024
+    batch = BATCH_SIZE
 
     # Save the weights each n_itr iterations
-    n_itr = 10
+    n_itr = N_ITR
 
-    n_epochs = 100
+    n_epochs = N_EPOCHS
 
     # Load the first validation TFRecord file to use in
     # periodically evaluating performance
     _, x1_val, x2_val, y_val = next(tf_itr("val"))
 
     model = build_model()
+    tensorboard.set_model(model)
 
     # number of batches that have been processed
     n = 0
@@ -240,7 +279,7 @@ def train(load_model: bool = True):
 
     if load_model:
         # Load the best performing weights
-        weight_pattern = os.path.join(os.path.dirname(__file__), "weights/*.h5")
+        weight_pattern = os.path.join(WEIGHTS_DIR, "/*.h5")
         weights = glob.glob(weight_pattern)
 
         if len(weights) > 0:
@@ -273,7 +312,7 @@ def train(load_model: bool = True):
         # Do batch training
         for d in tf_itr("train", batch=batch, skip=nskip):
             _, x1_trn, x2_trn, y_trn = d
-            model.train_on_batch({"x1": x1_trn, "x2": x2_trn}, {"output": y_trn})
+            loss = model.train_on_batch({"x1": x1_trn, "x2": x2_trn}, {"output": y_trn})
 
             # Keep track of total number of iterations and iterations since epoch start
             n += 1
@@ -289,11 +328,16 @@ def train(load_model: bool = True):
                 now = pendulum.now()
                 fmt = now.format("Y-MM-DD HH:mm:ss")
                 log.info(fmt)
-                model.save_weights(f"weights/{g:0.5f}_{e:d}_{n:d}_{ise:d}.h5")
+                model.save_weights(
+                    os.path.join(WEIGHTS_DIR, f"{g:0.5f}_{e:d}_{n:d}_{ise:d}.h5")
+                )
+                tensorboard.on_epoch_end(n, {"loss": loss, "mAP": g})
 
         # Set to 0 to not skip any batches on further epocs
         nskip = 0
         ise = 0
+
+    tensorboard.on_train_end(None)
 
 
 def conv_pred(el, t: Optional[int] = None) -> str:
