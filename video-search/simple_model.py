@@ -1,5 +1,4 @@
 import glob
-import logging
 import os
 import re
 from multiprocessing import Pool
@@ -20,30 +19,13 @@ from tensorflow.keras.layers import (
     concatenate,
 )
 from tensorflow.keras.models import Model
+from tensorboard.plugins.hparams import api as hp
+
+from .utils import create_logger
 
 # Adapted from https://www.kaggle.com/drn01z3/keras-baseline-on-video-features-0-7941-lb/code
 
 FOLDER = "/media/watemerald/Seagate/data/yt8m/video/"
-
-
-def create_logger(name: str, log_file: str) -> logging.Logger:
-    log = logging.getLogger(name)
-    log.setLevel(logging.INFO)
-
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(levelname)s - %(message)s")
-    handler.setFormatter(formatter)
-    log.addHandler(handler)
-
-    # create error file handler and set level to error
-    handler = logging.FileHandler(log_file, "w")
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(levelname)s - %(message)s")
-    handler.setFormatter(formatter)
-    log.addHandler(handler)
-
-    return log
 
 
 log = create_logger(__name__, "file.log")
@@ -258,7 +240,8 @@ def train(load_model: bool = True):
 
     if load_model:
         # Load the best performing weights
-        weights = glob.glob("weights/*.h5")
+        weight_pattern = os.path.join(os.path.dirname(__file__), "weights/*.h5")
+        weights = glob.glob(weight_pattern)
 
         if len(weights) > 0:
             wfn = max(weights, key=os.path.getctime)
@@ -337,7 +320,15 @@ def predict():
     model = build_model()
 
     # Load the best newest weights
-    weights = glob.glob("weights/*.h5")
+    weight_pattern = os.path.join(os.path.dirname(__file__), "weights/*.h5")
+    weights = glob.glob(weight_pattern)
+
+    if not weights:
+        log.error(
+            f"There are no weight files saved at {os.path.dirname(weight_pattern)}"
+        )
+        return
+
     wfn = max(weights, key=os.path.getctime)
     model.load_weights(wfn)
     log.info(f"loaded weight file: {wfn}")
