@@ -361,15 +361,13 @@ def conv_pred(el, t: Optional[int] = None) -> str:
     return " ".join([f"{i} {el[i]:0.5f}" for i in idx[:t]])
 
 
-def predict(file: str = "subm1"):
+def predict(outfile: str, media_folder: str, batch: int):
     """
         Make a prediction using the latest trained weights
 
         Args:
-            file: the csv file that will hold the results
+            outfile: the csv file that will hold the results
     """
-    model = build_model()
-
     try:
         with open(DATA_FILE, "r") as f:
             data = json.load(f)
@@ -380,7 +378,8 @@ def predict(file: str = "subm1"):
 
     wfn = best["file"]
 
-    model.load_weights(wfn)
+    # model.load_weights(wfn)
+    model = tf.keras.models.load_model(wfn)
     log.info(f"loaded weight file: {wfn}")
 
     ids = []
@@ -389,10 +388,10 @@ def predict(file: str = "subm1"):
     # Create empty prediction csv file
     df = pd.DataFrame.from_dict({"VideoId": ids, "LabelConfidencePairs": ypd})
     df.to_csv(
-        file, header=True, index=False, columns=["VideoId", "LabelConfidencePairs"]
+        outfile, header=True, index=False, columns=["VideoId", "LabelConfidencePairs"]
     )
 
-    for d in tf_itr("test", 10 * 1024):
+    for d in tf_itr("test", batch, media_folder=media_folder):
         idx, x1_val, x2_val, _ = d
         ypd = model.predict({"x1": x1_val, "x2": x2_val}, verbose=1, batch_size=32)
 
@@ -402,13 +401,9 @@ def predict(file: str = "subm1"):
         # Append the results of the current batch to the output csv
         df = pd.DataFrame.from_dict({"VideoId": idx, "LabelConfidencePairs": out})
         df.to_csv(
-            file,
+            outfile,
             header=False,
             index=False,
             columns=["VideoId", "LabelConfidencePairs"],
             mode="a",
         )
-
-
-if __name__ == "__main__":
-    predict()

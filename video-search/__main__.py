@@ -21,6 +21,9 @@ N_EPOCHS = 100
 # Save the weights every N iterations
 N_ITR = 10
 
+# Default output file for predictions
+OUTFILE = "out1"
+
 
 @app.command("train")
 def train_model(
@@ -38,8 +41,16 @@ def train_model(
 
 
 @app.command("predict")
-def predict_model():
-    predict()
+def predict_model(
+    media_folder: str = Option(
+        FOLDER, help="The folder where the YouTube-8M files are stored"
+    ),
+    batch: int = Option(BATCH_SIZE, help="Number of records to process per batch"),
+    outfile: str = Option(OUTFILE, "-o", help="The output file"),
+):
+    kwargs = locals()
+    log.info(f"Launching train function for model simple_model with arguments {kwargs}")
+    predict(**kwargs)
 
 
 if __name__ == "__main__":
