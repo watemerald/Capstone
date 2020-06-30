@@ -22,42 +22,9 @@ from tensorflow.keras.layers import (
 )
 from tensorflow.keras.models import Model
 
-try:
-    from .utils import create_logger
-except Exception:
-    import logging
-
-    def create_logger(name: str, log_file: str) -> logging.Logger:
-        log = logging.getLogger(name)
-        log.setLevel(logging.INFO)
-
-        handler = logging.StreamHandler()
-        handler.setLevel(logging.INFO)
-        formatter = logging.Formatter("%(levelname)s - %(message)s")
-        handler.setFormatter(formatter)
-        log.addHandler(handler)
-
-        # create error file handler and set level to error
-        handler = logging.FileHandler(log_file, "w")
-        handler.setLevel(logging.INFO)
-        formatter = logging.Formatter("%(levelname)s - %(message)s")
-        handler.setFormatter(formatter)
-        log.addHandler(handler)
-
-        return log
-
+from .utils import create_logger
 
 # Adapted from https://www.kaggle.com/drn01z3/keras-baseline-on-video-features-0-7941-lb/code
-
-FOLDER = "/media/watemerald/Seagate/data/yt8m/video/"
-
-BATCH_SIZE = 10 * 1024
-
-# Number of epochs
-N_EPOCHS = 100
-
-# Save the weights every N iterations
-N_ITR = 10
 
 
 log = create_logger(__name__, "file.log")
@@ -144,7 +111,7 @@ def mean_ap(pred: np.ndarray, actual: np.ndarray) -> float:
 
 
 def tf_itr(
-    tp: str = "test", batch: int = 1024, skip: int = 0
+    tp: str = "test", batch: int = 1024, skip: int = 0, *, media_folder: str,
 ) -> Iterator[Tuple[np.array, np.array, np.array, np.array,]]:
     """
     Iterate over TFRecords of a certain type
@@ -158,7 +125,7 @@ def tf_itr(
             index i ids[i], audio[i], rgb[i], labels[i] all correspond to the same records info
     """
     # TFRecord files
-    tfiles = sorted(glob.glob(os.path.join(FOLDER, f"{tp}*tfrecord")))
+    tfiles = sorted(glob.glob(os.path.join(media_folder, f"{tp}*tfrecord")))
 
     log.info(f"total files in {tp} {len(tfiles)}")
 
@@ -245,7 +212,9 @@ def build_model() -> Model:
     return model
 
 
-def train(load_model: bool = True):
+def train(
+    epochs: int, save_interval: int, batch: int, load_model: bool = True, **kwargs
+):
     """
         Train the simple model
 
@@ -258,19 +227,16 @@ def train(load_model: bool = True):
         os.makedirs(WEIGHTS_DIR)
 
     # The number of records per batch
-    batch = BATCH_SIZE
+    batch = batch
 
     # Save the weights each n_itr iterations
-    n_itr = N_ITR
+    n_itr = save_interval
 
-    n_epochs = N_EPOCHS
+    n_epochs = epochs
 
     # Load the first validation TFRecord file to use in
     # periodically evaluating performance
-    _, x1_val, x2_val, y_val = next(tf_itr("val"))
-
-    model = build_model()
-    tensorboard.set_model(model)
+    _, x1_val, x2_val, y_val = next(tf_itr("val", **kwargs))
 
     # number of batches that have been processed
     n = 0
@@ -302,15 +268,21 @@ def train(load_model: bool = True):
     if load_model:
         if len(data["runs"]) == 0:
             log.info("No model to load, starting from 0")
+            model = build_model()
+            tensorboard.set_model(model)
         else:
             # Load the latest weight file
             latest = data["runs"][-1]
             wfn = latest["file"]
-            model.load(wfn)
+            model = tf.keras.models.load_model(wfn)
+            tensorboard.set_model(model)
             log.info(f"Loaded weight file: {wfn}")
             e_passed = latest["epoch"]
             n = latest["iter"]
             ise = latest["ise"]
+    else:
+        model = build_model()
+        tensorboard.set_model(model)
 
     start = pendulum.now()
     fmt = start.format("Y-MM-DD HH:mm:ss")
@@ -323,7 +295,7 @@ def train(load_model: bool = True):
     for e in range(e_passed, n_epochs):
 
         # Do batch training
-        for d in tf_itr("train", batch=batch, skip=nskip):
+        for d in tf_itr("train", batch=batch, skip=nskip, **kwargs):
             _, x1_trn, x2_trn, y_trn = d
             loss = model.train_on_batch({"x1": x1_trn, "x2": x2_trn}, {"output": y_trn})
 

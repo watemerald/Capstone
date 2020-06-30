@@ -1,6 +1,7 @@
+from pathlib import Path
+
 import typer
 from typer import Argument, Option
-from pathlib import Path
 
 from .simple_model import predict, train
 from .utils import create_logger
@@ -23,19 +24,17 @@ N_ITR = 10
 
 @app.command("train")
 def train_model(
-    media_folder: Path = Option(
+    media_folder: str = Option(
         FOLDER, help="The folder where the YouTube-8M files are stored"
     ),
     batch: int = Option(BATCH_SIZE, help="Number of records to process per batch"),
     epochs: int = Option(N_EPOCHS, help="Total number of epochs to train for"),
     save_interval: int = Option(N_ITR, help="How often to save intermediate results"),
+    load_model: bool = Option(True, help="Load the latest model to train off of"),
 ):
-    typer.echo(f"media_folder: {media_folder}")
-    typer.echo(f"batch: {batch}")
-    typer.echo(f"epochs: {epochs}")
-    typer.echo(f"save_interval: {save_interval}")
-
-    typer.echo(f"locals: {locals()}")
+    kwargs = locals()
+    log.info(f"Launching train function for model simple_model with arguments {kwargs}")
+    train(**kwargs)
 
 
 @app.command("predict")
