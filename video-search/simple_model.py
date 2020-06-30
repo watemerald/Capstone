@@ -1,7 +1,7 @@
 import glob
 import json
 import os
-import re
+import sys
 from multiprocessing import Pool
 from typing import Iterator, Optional, Tuple
 
@@ -389,23 +389,25 @@ def conv_pred(el, t: Optional[int] = None) -> str:
     return " ".join([f"{i} {el[i]:0.5f}" for i in idx[:t]])
 
 
-def predict():
+def predict(file: str = "subm1"):
     """
         Make a prediction using the latest trained weights
+
+        Args:
+            file: the csv file that will hold the results
     """
     model = build_model()
 
-    # Load the best newest weights
-    weight_pattern = os.path.join(os.path.dirname(__file__), "weights/*.h5")
-    weights = glob.glob(weight_pattern)
+    try:
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+            best = data["best"]
+    except FileNotFoundError:
+        log.error("No weight files saved. Can't make predictions")
+        sys.exit(1)
 
-    if not weights:
-        log.error(
-            f"There are no weight files saved at {os.path.dirname(weight_pattern)}"
-        )
-        return
+    wfn = best["file"]
 
-    wfn = max(weights, key=os.path.getctime)
     model.load_weights(wfn)
     log.info(f"loaded weight file: {wfn}")
 
@@ -415,7 +417,7 @@ def predict():
     # Create empty prediction csv file
     df = pd.DataFrame.from_dict({"VideoId": ids, "LabelConfidencePairs": ypd})
     df.to_csv(
-        "subm1", header=True, index=False, columns=["VideoId", "LabelConfidencePairs"]
+        file, header=True, index=False, columns=["VideoId", "LabelConfidencePairs"]
     )
 
     for d in tf_itr("test", 10 * 1024):
@@ -428,7 +430,7 @@ def predict():
         # Append the results of the current batch to the output csv
         df = pd.DataFrame.from_dict({"VideoId": idx, "LabelConfidencePairs": out})
         df.to_csv(
-            "subm1",
+            file,
             header=False,
             index=False,
             columns=["VideoId", "LabelConfidencePairs"],
@@ -437,4 +439,4 @@ def predict():
 
 
 if __name__ == "__main__":
-    train()
+    predict()
