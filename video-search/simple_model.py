@@ -1,4 +1,5 @@
 import glob
+import json
 import os
 import re
 from multiprocessing import Pool
@@ -8,6 +9,7 @@ import numpy as np
 import pandas as pd
 import pendulum
 import tensorflow as tf
+from tensorboard.plugins.hparams import api as hp
 from tensorflow.keras.initializers import glorot_normal
 from tensorflow.keras.layers import (
     BatchNormalization,
@@ -19,7 +21,6 @@ from tensorflow.keras.layers import (
     concatenate,
 )
 from tensorflow.keras.models import Model
-from tensorboard.plugins.hparams import api as hp
 
 try:
     from .utils import create_logger
@@ -63,6 +64,7 @@ log = create_logger(__name__, "file.log")
 
 TENSORBOARD_LOG_DIR = "logs/simple"
 WEIGHTS_DIR = os.path.join(TENSORBOARD_LOG_DIR, "weights/")
+DATA_FILE = os.path.join(TENSORBOARD_LOG_DIR, "data.json")
 
 tensorboard = tf.keras.callbacks.TensorBoard(
     log_dir=TENSORBOARD_LOG_DIR, histogram_freq=0, write_graph=True,
@@ -277,27 +279,38 @@ def train(load_model: bool = True):
     # Number of iterations since epoch
     ise = 0
 
+    data = None
+    # Best mAP encoundered so far
+    best_map = 0
+
+    # Load JSON stats
+    if os.path.isfile(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+            best = data["best"]
+            best_map = best["map"]
+
+    else:
+        # Create stats if they don't exist
+        with open(DATA_FILE, "w") as f:
+            data = {
+                "best": {"iter": 0, "map": 0, "epoch": 0, "ise": 0, "file": ""},
+                "runs": [],
+            }
+            json.dump({}, f)
+
     if load_model:
-        # Load the best performing weights
-        weight_pattern = os.path.join(WEIGHTS_DIR, "/*.h5")
-        weights = glob.glob(weight_pattern)
-
-        if len(weights) > 0:
-            wfn = max(weights, key=os.path.getctime)
-            model.load_weights(wfn)
-            log.info(f"loaded weight file: {wfn}")
-
-            # The weight file looks like this: weights/0.57366_0_20.h5
-            # Parse it out to get the current epoch and iteration number
-            match = re.match(
-                r"weights/\d+\.\d+_(?P<epoch>\d+)_(?P<iter>\d+)_(?P<ise>\d+)\.h5", wfn
-            )
-            (e_passed, n, ise) = match.groups()
-
-            # Convert the matched strings to ints
-            e_passed = int(e_passed)
-            n = int(n)
-            ise = int(ise)
+        if len(data["runs"]) == 0:
+            log.info("No model to load, starting from 0")
+        else:
+            # Load the latest weight file
+            latest = data["runs"][-1]
+            wfn = latest["file"]
+            model.load(wfn)
+            log.info(f"Loaded weight file: {wfn}")
+            e_passed = latest["epoch"]
+            n = latest["iter"]
+            ise = latest["ise"]
 
     start = pendulum.now()
     fmt = start.format("Y-MM-DD HH:mm:ss")
@@ -324,13 +337,32 @@ def train(load_model: bool = True):
                     {"x1": x1_val, "x2": x2_val}, verbose=False, batch_size=100
                 )
                 g = mean_ap(y_prd, y_val)
-                log.info(f"val mAP {g:0.5f}; epoch: {e:d}; iters: {n:d}; ise: {ise:d}")
                 now = pendulum.now()
                 fmt = now.format("Y-MM-DD HH:mm:ss")
                 log.info(fmt)
-                model.save_weights(
-                    os.path.join(WEIGHTS_DIR, f"{g:0.5f}_{e:d}_{n:d}_{ise:d}.h5")
+                log.info(f"val mAP {g:0.5f}; EPOCH: {e:d}; iters: {n:d}; ise: {ise:d}")
+
+                # Weights file
+                wfile = os.path.join(WEIGHTS_DIR, f"{g:0.5f}_{e:d}_{n:d}_{ise:d}.h5")
+                model.save(wfile)
+
+                # Save stats into data file
+                data["runs"].append(
+                    {"iter": n, "epoch": e, "map": g, "ise": ise, "file": wfile}
                 )
+                if g > best_map:
+                    best_map = g
+                    data["best"] = {
+                        "iter": n,
+                        "epoch": e,
+                        "map": g,
+                        "ise": ise,
+                        "file": wfile,
+                    }
+
+                with open(DATA_FILE, "w") as f:
+                    json.dump(data, f)
+
                 tensorboard.on_epoch_end(n, {"loss": loss, "mAP": g})
 
         # Set to 0 to not skip any batches on further epocs

@@ -1,9 +1,11 @@
-import tensorflow as tf
-import requests
 import re
-from typing import Union, List
-import pandas
 from dataclasses import dataclass
+from typing import List, Union
+
+import pandas
+import requests
+import tensorflow as tf
+from IPython.display import YouTubeVideo
 
 record = "/media/watemerald/Seagate/data/yt8m/frame/train0001.tfrecord"
 
@@ -55,9 +57,6 @@ def decode_tf_example(e: tf.train.Example) -> VideoInfo:
     long_id = expand_vid_id(short_id)
     tags = list(map(label_id_to_name, labels))
     return VideoInfo(short_id=short_id.decode("UTF-8"), long_id=long_id, tags=tags,)
-
-
-from IPython.display import YouTubeVideo
 
 
 def display_video(vid: VideoInfo) -> YouTubeVideo:
