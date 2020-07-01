@@ -366,12 +366,15 @@ def conv_pred(el, t: Optional[int] = None) -> str:
     return " ".join([f"{i} {el[i]:0.5f}" for i in idx[:t]])
 
 
-def predict(outfile: str, media_folder: str, batch: int):
+def predict(weights_file: Optional[str], outfile: str, media_folder: str, batch: int):
     """
         Make a prediction using the latest trained weights
 
         Args:
+            weights_file: the weights file to use. If empty, use the best weights instead
             outfile: the csv file that will hold the results
+            media_folder: the path where the YouTube-8M files are stored
+            batch: number of records to load per batch
     """
     try:
         with open(DATA_FILE, "r") as f:
@@ -381,7 +384,10 @@ def predict(outfile: str, media_folder: str, batch: int):
         log.error("No weight files saved. Can't make predictions")
         sys.exit(1)
 
-    wfn = best["file"]
+    if weights_file is None:
+        wfn = best["file"]
+    else:
+        wfn = weights_file
 
     # model.load_weights(wfn)
     model = tf.keras.models.load_model(wfn)

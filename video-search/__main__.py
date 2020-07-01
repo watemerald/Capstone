@@ -1,3 +1,5 @@
+from typing import Optional
+
 import typer
 from typer import Argument, Option
 
@@ -52,6 +54,7 @@ def train_model(
 
 @app.command("predict")
 def predict_model(
+    weights_file: Optional[str] = Argument(None),
     media_folder: str = Option(
         FOLDER, help="The folder where the YouTube-8M files are stored"
     ),
