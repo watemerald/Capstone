@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import pendulum
 import tensorflow as tf
-from tensorboard.plugins.hparams import api as hp
 from tensorflow.keras.initializers import glorot_normal
 from tensorflow.keras.layers import (
     BatchNormalization,
@@ -45,7 +44,7 @@ def ap_at_n(data: Tuple[np.ndarray, np.ndarray], n: Optional[int] = 20,) -> floa
     Args:
         data: a tuple of 1D numpy arrays, storing the prediction scores and actual label values
         n: the top n items to be considered for ap@n; If it's None then just calculate average precision over all labels
-    
+
     Returns:
         float: the ap@n
     """
@@ -97,7 +96,7 @@ def mean_ap(pred: np.ndarray, actual: np.ndarray) -> float:
     Args:
         pred: the array of predicted labels
         actual: the array of the actual labels
-    
+
     Returns:
         float: the mAP
     """
@@ -112,7 +111,7 @@ def mean_ap(pred: np.ndarray, actual: np.ndarray) -> float:
 
 def tf_itr(
     tp: str = "test", batch: int = 1024, skip: int = 0, *, media_folder: str, **kwargs
-) -> Iterator[Tuple[np.array, np.array, np.array, np.array,]]:
+) -> Iterator[Tuple[np.array, np.array, np.array, np.array]]:
     """
     Iterate over TFRecords of a certain type
 
@@ -176,7 +175,7 @@ def fc_block(x: Layer, n: int = 1024, d: float = 0.2) -> Layer:
             x: a TensorFlow layer to be passed through the block
             n: the number of neurons in the dense layer
             d: the dropout rate
-        
+
         Returns:
             Layer: the resulting Tensorflow Layer
     """
@@ -352,11 +351,11 @@ def train(
 def conv_pred(el, t: Optional[int] = None) -> str:
     """
         Convert a prediction to a formatted string
-        
+
         Args:
             el: the predictions
             t: the number of top confidence labels to log (default: 20)
-        
+
         Returns:
             str: the formatted string
     """
