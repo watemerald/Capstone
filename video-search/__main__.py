@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import typer
 from typer import Argument, Option
 
@@ -24,6 +22,10 @@ N_ITR = 10
 # Default output file for predictions
 OUTFILE = "out1"
 
+# Simple model parameters
+SIMPLE_MODEL_DROPOUT_RATE = 0.25
+SIMPLE_MODEL_BLOCK_NEURONS = 1024
+
 
 @app.command("train")
 def train_model(
@@ -34,6 +36,14 @@ def train_model(
     epochs: int = Option(N_EPOCHS, help="Total number of epochs to train for"),
     save_interval: int = Option(N_ITR, help="How often to save intermediate results"),
     load_model: bool = Option(True, help="Load the latest model to train off of"),
+    dropout_rate: float = Option(
+        SIMPLE_MODEL_DROPOUT_RATE,
+        help="The dropout rate for the simple model's fully connected block",
+    ),
+    hidden_neurons: int = Option(
+        SIMPLE_MODEL_BLOCK_NEURONS,
+        help="The number of neurons in the first layer in the simple model's fully connected block",
+    ),
 ):
     kwargs = locals()
     log.info(f"Launching train function for model simple_model with arguments {kwargs}")

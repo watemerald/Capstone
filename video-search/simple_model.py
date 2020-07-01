@@ -111,7 +111,7 @@ def mean_ap(pred: np.ndarray, actual: np.ndarray) -> float:
 
 
 def tf_itr(
-    tp: str = "test", batch: int = 1024, skip: int = 0, *, media_folder: str,
+    tp: str = "test", batch: int = 1024, skip: int = 0, *, media_folder: str, **kwargs
 ) -> Iterator[Tuple[np.array, np.array, np.array, np.array,]]:
     """
     Iterate over TFRecords of a certain type
@@ -187,23 +187,28 @@ def fc_block(x: Layer, n: int = 1024, d: float = 0.2) -> Layer:
     return x
 
 
-def build_model() -> Model:
+def build_model(
+    hidden_neurons: int = 1024, dropout_rate: float = 0.2, **kwargs
+) -> Model:
     """
         Build a simple model
+        Args:
+            hidden_neurons: the number of neurons to be used in fc_block
+            dropout_rate: the dropout rate to be used in fc_block
 
         Returns:
             Model: A simple YouTube-8M Video Level model
     """
     # Input 1 is the audio information
     in1 = Input((128,), name="x1")
-    x1 = fc_block(in1)
+    x1 = fc_block(in1, n=hidden_neurons, d=dropout_rate)
 
     # Input 2 is the video information
     in2 = Input((1024,), name="x2")
-    x2 = fc_block(in2)
+    x2 = fc_block(in2, n=hidden_neurons, d=dropout_rate)
 
     x = concatenate([x1, x2], 1)
-    x = fc_block(x)
+    x = fc_block(x, n=hidden_neurons, d=dropout_rate)
     out = Dense(4716, activation="sigmoid", name="output")(x)
 
     model = Model([in1, in2], out)
@@ -268,7 +273,7 @@ def train(
     if load_model:
         if len(data["runs"]) == 0:
             log.info("No model to load, starting from 0")
-            model = build_model()
+            model = build_model(**kwargs)
             tensorboard.set_model(model)
         else:
             # Load the latest weight file
@@ -281,7 +286,7 @@ def train(
             n = latest["iter"]
             ise = latest["ise"]
     else:
-        model = build_model()
+        model = build_model(**kwargs)
         tensorboard.set_model(model)
 
     start = pendulum.now()
