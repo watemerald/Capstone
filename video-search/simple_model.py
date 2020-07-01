@@ -1,27 +1,41 @@
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import (
-    Input,
-    Dense,
-    BatchNormalization,
-    Dropout,
-    LeakyReLU,
-    concatenate,
-    Layer,
-)
-from tensorflow.keras.initializers import glorot_normal
-import tensorflow as tf
+import glob
+import json
+import os
+import sys
+from multiprocessing import Pool
+from typing import Iterator, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-import glob
-import os
 import pendulum
-from multiprocessing import Pool
-from typing import Iterator, Optional, Tuple, Iterator
-import re
+import tensorflow as tf
+from tensorboard.plugins.hparams import api as hp
+from tensorflow.keras.initializers import glorot_normal
+from tensorflow.keras.layers import (
+    BatchNormalization,
+    Dense,
+    Dropout,
+    Input,
+    Layer,
+    LeakyReLU,
+    concatenate,
+)
+from tensorflow.keras.models import Model
+
+from .utils import create_logger
 
 # Adapted from https://www.kaggle.com/drn01z3/keras-baseline-on-video-features-0-7941-lb/code
 
-FOLDER = "/media/watemerald/Seagate/data/yt8m/video/"
+
+log = create_logger(__name__, "file.log")
+
+TENSORBOARD_LOG_DIR = "logs/simple"
+WEIGHTS_DIR = os.path.join(TENSORBOARD_LOG_DIR, "weights/")
+DATA_FILE = os.path.join(TENSORBOARD_LOG_DIR, "data.json")
+
+tensorboard = tf.keras.callbacks.TensorBoard(
+    log_dir=TENSORBOARD_LOG_DIR, histogram_freq=0, write_graph=True,
+)
 
 
 def ap_at_n(data: Tuple[np.ndarray, np.ndarray], n: Optional[int] = 20,) -> float:
@@ -97,7 +111,7 @@ def mean_ap(pred: np.ndarray, actual: np.ndarray) -> float:
 
 
 def tf_itr(
-    tp: str = "test", batch: int = 1024, skip: int = 0
+    tp: str = "test", batch: int = 1024, skip: int = 0, *, media_folder: str, **kwargs
 ) -> Iterator[Tuple[np.array, np.array, np.array, np.array,]]:
     """
     Iterate over TFRecords of a certain type
@@ -111,9 +125,9 @@ def tf_itr(
             index i ids[i], audio[i], rgb[i], labels[i] all correspond to the same records info
     """
     # TFRecord files
-    tfiles = sorted(glob.glob(os.path.join(FOLDER, f"{tp}*tfrecord")))
+    tfiles = sorted(glob.glob(os.path.join(media_folder, f"{tp}*tfrecord")))
 
-    print(f"total files in {tp} {len(tfiles)}")
+    log.info(f"total files in {tp} {len(tfiles)}")
 
     # Initialize the lists to store the ids, audio & visual information, and labels for the current batch
     ids, aud, rgb, lbs = [], [], [], []
@@ -173,23 +187,28 @@ def fc_block(x: Layer, n: int = 1024, d: float = 0.2) -> Layer:
     return x
 
 
-def build_model() -> Model:
+def build_model(
+    hidden_neurons: int = 1024, dropout_rate: float = 0.2, **kwargs
+) -> Model:
     """
         Build a simple model
+        Args:
+            hidden_neurons: the number of neurons to be used in fc_block
+            dropout_rate: the dropout rate to be used in fc_block
 
         Returns:
             Model: A simple YouTube-8M Video Level model
     """
     # Input 1 is the audio information
     in1 = Input((128,), name="x1")
-    x1 = fc_block(in1)
+    x1 = fc_block(in1, n=hidden_neurons, d=dropout_rate)
 
     # Input 2 is the video information
     in2 = Input((1024,), name="x2")
-    x2 = fc_block(in2)
+    x2 = fc_block(in2, n=hidden_neurons, d=dropout_rate)
 
     x = concatenate([x1, x2], 1)
-    x = fc_block(x)
+    x = fc_block(x, n=hidden_neurons, d=dropout_rate)
     out = Dense(4716, activation="sigmoid", name="output")(x)
 
     model = Model([in1, in2], out)
@@ -198,7 +217,9 @@ def build_model() -> Model:
     return model
 
 
-def train(load_model: bool = True):
+def train(
+    epochs: int, save_interval: int, batch: int, load_model: bool = True, **kwargs
+):
     """
         Train the simple model
 
@@ -207,22 +228,20 @@ def train(load_model: bool = True):
     """
 
     # Create a weights directory to save the checkpoint files
-    if not os.path.exists("weights"):
-        os.mkdir("weights")
+    if not os.path.exists(WEIGHTS_DIR):
+        os.makedirs(WEIGHTS_DIR)
 
     # The number of records per batch
-    batch = 10 * 1024
+    batch = batch
 
     # Save the weights each n_itr iterations
-    n_itr = 10
+    n_itr = save_interval
 
-    n_epochs = 100
+    n_epochs = epochs
 
     # Load the first validation TFRecord file to use in
     # periodically evaluating performance
-    _, x1_val, x2_val, y_val = next(tf_itr("val"))
-
-    model = build_model()
+    _, x1_val, x2_val, y_val = next(tf_itr("val", **kwargs))
 
     # number of batches that have been processed
     n = 0
@@ -231,31 +250,49 @@ def train(load_model: bool = True):
     # Number of iterations since epoch
     ise = 0
 
+    data = None
+    # Best mAP encoundered so far
+    best_map = 0
+
+    # Load JSON stats
+    if os.path.isfile(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+            best = data["best"]
+            best_map = best["map"]
+
+    else:
+        # Create stats if they don't exist
+        with open(DATA_FILE, "w") as f:
+            data = {
+                "best": {"iter": 0, "map": 0, "epoch": 0, "ise": 0, "file": ""},
+                "runs": [],
+            }
+            json.dump({}, f)
+
     if load_model:
-        # Load the best performing weights
-        weights = glob.glob("weights/*.h5")
-
-        if len(weights) > 0:
-            wfn = max(weights, key=os.path.getctime)
-            model.load_weights(wfn)
-            print(f"loaded weight file: {wfn}")
-
-            # The weight file looks like this: weights/0.57366_0_20.h5
-            # Parse it out to get the current epoch and iteration number
-            match = re.match(
-                r"weights/\d+\.\d+_(?P<epoch>\d+)_(?P<iter>\d+)_(?P<ise>\d+)\.h5", wfn
-            )
-            (e_passed, n, ise) = match.groups()
-
-            # Convert the matched strings to ints
-            e_passed = int(e_passed)
-            n = int(n)
-            ise = int(ise)
+        if len(data["runs"]) == 0:
+            log.info("No model to load, starting from 0")
+            model = build_model(**kwargs)
+            tensorboard.set_model(model)
+        else:
+            # Load the latest weight file
+            latest = data["runs"][-1]
+            wfn = latest["file"]
+            model = tf.keras.models.load_model(wfn)
+            tensorboard.set_model(model)
+            log.info(f"Loaded weight file: {wfn}")
+            e_passed = latest["epoch"]
+            n = latest["iter"]
+            ise = latest["ise"]
+    else:
+        model = build_model(**kwargs)
+        tensorboard.set_model(model)
 
     start = pendulum.now()
     fmt = start.format("Y-MM-DD HH:mm:ss")
-    print(f"Started at {fmt}")
-    print(f"Starting at EPOCH {e_passed} iter {n}")
+    log.info(f"Started at {fmt}")
+    log.info(f"Starting at EPOCH {e_passed} iter {n}")
 
     # How many batches to skip on first processed epoch
     nskip = ise
@@ -263,9 +300,9 @@ def train(load_model: bool = True):
     for e in range(e_passed, n_epochs):
 
         # Do batch training
-        for d in tf_itr("train", batch=batch, skip=nskip):
+        for d in tf_itr("train", batch=batch, skip=nskip, **kwargs):
             _, x1_trn, x2_trn, y_trn = d
-            model.train_on_batch({"x1": x1_trn, "x2": x2_trn}, {"output": y_trn})
+            loss = model.train_on_batch({"x1": x1_trn, "x2": x2_trn}, {"output": y_trn})
 
             # Keep track of total number of iterations and iterations since epoch start
             n += 1
@@ -277,15 +314,39 @@ def train(load_model: bool = True):
                     {"x1": x1_val, "x2": x2_val}, verbose=False, batch_size=100
                 )
                 g = mean_ap(y_prd, y_val)
-                print(f"val mAP {g:0.5f}; epoch: {e:d}; iters: {n:d}; ise: {ise:d}")
                 now = pendulum.now()
                 fmt = now.format("Y-MM-DD HH:mm:ss")
-                print(fmt)
-                model.save_weights(f"weights/{g:0.5f}_{e:d}_{n:d}_{ise:d}.h5")
+                log.info(fmt)
+                log.info(f"val mAP {g:0.5f}; EPOCH: {e:d}; iters: {n:d}; ise: {ise:d}")
+
+                # Weights file
+                wfile = os.path.join(WEIGHTS_DIR, f"{g:0.5f}_{e:d}_{n:d}_{ise:d}.h5")
+                model.save(wfile)
+
+                # Save stats into data file
+                data["runs"].append(
+                    {"iter": n, "epoch": e, "map": g, "ise": ise, "file": wfile}
+                )
+                if g > best_map:
+                    best_map = g
+                    data["best"] = {
+                        "iter": n,
+                        "epoch": e,
+                        "map": g,
+                        "ise": ise,
+                        "file": wfile,
+                    }
+
+                with open(DATA_FILE, "w") as f:
+                    json.dump(data, f)
+
+                tensorboard.on_epoch_end(n, {"loss": loss, "mAP": g})
 
         # Set to 0 to not skip any batches on further epocs
         nskip = 0
         ise = 0
+
+    tensorboard.on_train_end(None)
 
 
 def conv_pred(el, t: Optional[int] = None) -> str:
@@ -305,17 +366,32 @@ def conv_pred(el, t: Optional[int] = None) -> str:
     return " ".join([f"{i} {el[i]:0.5f}" for i in idx[:t]])
 
 
-def predict():
+def predict(weights_file: Optional[str], outfile: str, media_folder: str, batch: int):
     """
         Make a prediction using the latest trained weights
-    """
-    model = build_model()
 
-    # Load the best newest weights
-    weights = glob.glob("weights/*.h5")
-    wfn = max(weights, key=os.path.getctime)
-    model.load_weights(wfn)
-    print(f"loaded weight file: {wfn}")
+        Args:
+            weights_file: the weights file to use. If empty, use the best weights instead
+            outfile: the csv file that will hold the results
+            media_folder: the path where the YouTube-8M files are stored
+            batch: number of records to load per batch
+    """
+    try:
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+            best = data["best"]
+    except FileNotFoundError:
+        log.error("No weight files saved. Can't make predictions")
+        sys.exit(1)
+
+    if weights_file is None:
+        wfn = best["file"]
+    else:
+        wfn = weights_file
+
+    # model.load_weights(wfn)
+    model = tf.keras.models.load_model(wfn)
+    log.info(f"loaded weight file: {wfn}")
 
     ids = []
     ypd = []
@@ -323,10 +399,10 @@ def predict():
     # Create empty prediction csv file
     df = pd.DataFrame.from_dict({"VideoId": ids, "LabelConfidencePairs": ypd})
     df.to_csv(
-        "subm1", header=True, index=False, columns=["VideoId", "LabelConfidencePairs"]
+        outfile, header=True, index=False, columns=["VideoId", "LabelConfidencePairs"]
     )
 
-    for d in tf_itr("test", 10 * 1024):
+    for d in tf_itr("test", batch, media_folder=media_folder):
         idx, x1_val, x2_val, _ = d
         ypd = model.predict({"x1": x1_val, "x2": x2_val}, verbose=1, batch_size=32)
 
@@ -336,13 +412,9 @@ def predict():
         # Append the results of the current batch to the output csv
         df = pd.DataFrame.from_dict({"VideoId": idx, "LabelConfidencePairs": out})
         df.to_csv(
-            "subm1",
+            outfile,
             header=False,
             index=False,
             columns=["VideoId", "LabelConfidencePairs"],
             mode="a",
         )
-
-
-if __name__ == "__main__":
-    predict()
