@@ -3,7 +3,7 @@ import json
 import os
 import sys
 from multiprocessing import Pool
-from typing import Iterator, Optional, Tuple
+from typing import Iterator, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -365,7 +365,23 @@ def conv_pred(el, t: Optional[int] = None) -> str:
     return " ".join([f"{i} {el[i]:0.5f}" for i in idx[:t]])
 
 
-def predict(weights_file: Optional[str], outfile: str, media_folder: str, batch: int):
+def total_ap(batches: List[Tuple[int, float]]) -> Tuple[int, float]:
+    total = 0
+    running_ap = 1.0
+    for (n, ap) in batches:
+        running_ap = (total * running_ap + n * ap) / (total + n)
+        total += n
+
+    return (total, running_ap)
+
+
+def predict(
+    media_folder: str,
+    batch: int,
+    weights_file: Optional[str],
+    outfile: Optional[str] = None,
+    calculate_map: bool = False,
+):
     """
         Make a prediction using the latest trained weights
 
@@ -392,28 +408,48 @@ def predict(weights_file: Optional[str], outfile: str, media_folder: str, batch:
     model = tf.keras.models.load_model(wfn)
     log.info(f"loaded weight file: {wfn}")
 
-    ids = []
-    ypd = []
+    if calculate_map:
+        log.info("calculating mAP over the whole validation set")
 
-    # Create empty prediction csv file
-    df = pd.DataFrame.from_dict({"VideoId": ids, "LabelConfidencePairs": ypd})
-    df.to_csv(
-        outfile, header=True, index=False, columns=["VideoId", "LabelConfidencePairs"]
-    )
+        # The number of items per batch, along with the mean ap of each batch
+        ap_per_batch: List[Tuple[int, float]] = []
 
-    for d in tf_itr("test", batch, media_folder=media_folder):
-        idx, x1_val, x2_val, _ = d
-        ypd = model.predict({"x1": x1_val, "x2": x2_val}, verbose=1, batch_size=32)
+        for d in tf_itr("val", batch, media_folder=media_folder):
+            idx, x1_val, x2_val, lbs = d
+            ypd = model.predict({"x1": x1_val, "x2": x2_val}, verbose=1, batch_size=32)
 
-        with Pool() as pool:
-            out = pool.map(conv_pred, list(ypd))
+            m_ap = mean_ap(ypd, lbs)
+            ap_per_batch.append((len(idx), m_ap))
 
-        # Append the results of the current batch to the output csv
-        df = pd.DataFrame.from_dict({"VideoId": idx, "LabelConfidencePairs": out})
+            log.info(total_ap(ap_per_batch))
+
+    else:
+        log.info("createing a submission csv")
+        ids = []
+        ypd = []
+
+        # Create empty prediction csv file
+        df = pd.DataFrame.from_dict({"VideoId": ids, "LabelConfidencePairs": ypd})
         df.to_csv(
             outfile,
-            header=False,
+            header=True,
             index=False,
             columns=["VideoId", "LabelConfidencePairs"],
-            mode="a",
         )
+
+        for d in tf_itr("test", batch, media_folder=media_folder):
+            idx, x1_val, x2_val, _ = d
+            ypd = model.predict({"x1": x1_val, "x2": x2_val}, verbose=1, batch_size=32)
+
+            with Pool() as pool:
+                out = pool.map(conv_pred, list(ypd))
+
+            # Append the results of the current batch to the output csv
+            df = pd.DataFrame.from_dict({"VideoId": idx, "LabelConfidencePairs": out})
+            df.to_csv(
+                outfile,
+                header=False,
+                index=False,
+                columns=["VideoId", "LabelConfidencePairs"],
+                mode="a",
+            )

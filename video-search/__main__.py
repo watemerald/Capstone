@@ -60,6 +60,9 @@ def predict_model(
     ),
     batch: int = Option(BATCH_SIZE, help="Number of records to process per batch"),
     outfile: str = Option(OUTFILE, "-o", help="The output file"),
+    calculate_map: bool = Option(
+        False, "--map", "-m", help="Calculate average map of the test dataset instead"
+    ),
 ):
     kwargs = locals()
     log.info(f"Launching train function for model simple_model with arguments {kwargs}")
