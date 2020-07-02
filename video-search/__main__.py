@@ -3,7 +3,7 @@ from typing import Optional
 import typer
 from typer import Argument, Option
 
-from .simple_model import predict, train
+from .models.simple_model import SimpleModel
 from .utils import create_logger
 
 app = typer.Typer()
@@ -49,7 +49,8 @@ def train_model(
 ):
     kwargs = locals()
     log.info(f"Launching train function for model simple_model with arguments {kwargs}")
-    train(**kwargs)
+    model = SimpleModel()
+    model.train(**kwargs)
 
 
 @app.command("predict")
@@ -66,7 +67,8 @@ def predict_model(
 ):
     kwargs = locals()
     log.info(f"Launching train function for model simple_model with arguments {kwargs}")
-    predict(**kwargs)
+    model = SimpleModel()
+    model.predict(**kwargs)
 
 
 if __name__ == "__main__":
