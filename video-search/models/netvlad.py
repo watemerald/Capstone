@@ -2,10 +2,15 @@ import os
 import math
 
 import tensorflow as tf
-from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Layer, ReLU, Softmax
 from tensorflow.keras.models import Model
 
 import tensorflow.keras.backend as K
+
+import numpy as np
+
+from tensorflow.keras.initializers import RandomUniform, Zeros
+
 
 from ..utils import create_logger
 from .shared import NeuralNet
@@ -143,6 +148,76 @@ class NetVLAD(Layer):
 
     def compute_output_shape(self, input_shape):
         return tuple([None, self.output_dim])
+
+
+class MoE(Layer):
+    """Mixture-of-experts layer.
+    Implements: y = sum_{k=1}^K g(v_k * x) f(W_k * x)
+
+    Params:
+    units: the number of hidden units
+    n_experts: the number of experts
+    expert_activation: ReLU
+    gating_activation: Softmax
+    """
+
+    def __init__(self, units: int, n_experts: int, **kwargs):
+        super().__init__(**kwargs)
+
+        self.units = units
+        self.n_experts = n_experts
+
+    def build(self, input_shape):
+        input_dim = input_shape[-1]
+
+        expert_init_lim = np.sqrt(3.0 / (max(1.0, float(input_dim + self.units) / 2)))
+        gating_init_lim = np.sqrt(3.0 / (max(1.0, float(input_dim + 1) / 2)))
+
+        self.expert_kernel = self.add_weight(
+            shape=(input_dim, self.units, self.n_experts),
+            initializer=RandomUniform(minval=-expert_init_lim, maxval=expert_init_lim),
+            name="expert_kernel",
+        )
+
+        self.gating_kernel = self.add_weight(
+            shape=(input_dim, self.n_experts),
+            initializer=RandomUniform(minval=-gating_init_lim, maxval=gating_init_lim),
+            name="gating_kernel",
+        )
+
+        self.expert_bias = self.add_weight(
+            shape=(self.units, self.n_experts), initializer=Zeros, name="expert_bias"
+        )
+
+        self.gating_bias = self.add_weight(
+            shape=(self.n_experts,), initializer=Zeros, name="gating_bias"
+        )
+
+        super().build(input_shape)
+
+    def call(self, inputs):
+        expert_outputs = tf.tensordot(inputs, self.expert_kernel, axes=1)
+        expert_outputs = K.bias_add(expert_outputs, self.expert_bias)
+        expert_outputs = ReLU()(expert_outputs)
+
+        gating_outputs = K.dot(inputs, self.gating_kernel)
+        gating_outputs = K.bias_add(gating_outputs, self.gating_bias)
+        gating_outputs = Softmax()(gating_outputs)
+
+        output = K.sum(
+            expert_outputs
+            * K.repeat_elements(
+                K.expand_dims(gating_outputs, axis=1), self.units, axis=1
+            ),
+            axis=2,
+        )
+
+        return output
+
+    def compute_output_shape(self, input_shape):
+        output_shape = list(input_shape)
+        output_shape[-1] = self.units
+        return tuple(output_shape)
 
 
 class NetVLADModel(NeuralNet):
