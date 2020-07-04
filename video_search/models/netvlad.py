@@ -2,7 +2,7 @@ import os
 import math
 
 import tensorflow as tf
-from tensorflow.keras.layers import Layer, ReLU, Softmax
+from tensorflow.keras.layers import Layer, ReLU, Softmax, Input, concatenate
 from tensorflow.keras.models import Model
 
 import tensorflow.keras.backend as K
@@ -128,7 +128,7 @@ class NetVLAD(Layer):
 
         activation = tf.reshape(activation, [-1, self.max_samples, self.cluster_size])
 
-        a_sum = tf.reduce_sum(activation, -2, keep_dims=True)
+        a_sum = tf.reduce_sum(activation, -2, keepdims=True)
 
         a = tf.multiply(a_sum, self.cluster_weights2)
 
@@ -141,6 +141,8 @@ class NetVLAD(Layer):
         vlad = tf.matmul(activation, reshaped_input)
         vlad = tf.transpose(vlad, perm=[0, 2, 1])
         vlad = tf.subtract(vlad, a)
+        vlad = tf.nn.l2_normalize(vlad, 1)
+        vlad = tf.reshape(vlad, [-1, self.cluster_size * self.feature_size])
         vlad = tf.nn.l2_normalize(vlad, 1)
         vlad = K.dot(vlad, self.hidden1_weights)
 
@@ -225,4 +227,29 @@ class NetVLADModel(NeuralNet):
         super().__init__(TENSORBOARD_LOG_DIR, WEIGHTS_DIR, DATA_FILE, log)
 
     def build_model(self) -> Model:
-        pass
+        """Builds a gated NetVLAD classification model
+
+        Reference:
+        Miech, Antoine, Ivan Laptev, and Josef Sivic.
+        "Learnable pooling with context gating for video classification."
+        arXiv preprint arXiv:1706.06905 (2017).
+        """
+        NETVLAD_CLUSTER_SIZE = 256
+
+        in1 = Input((128,), name="x1")
+        x1 = NetVLAD(128, 0, NETVLAD_CLUSTER_SIZE, 128)(in1)
+
+        in2 = Input((1024,), name="x2")
+        x2 = NetVLAD(1024, 0, NETVLAD_CLUSTER_SIZE, 1024)(in2)
+
+        x = concatenate([x1, x2], 1)
+        x = ContextGating()(x)
+
+        x = MoE(4716, 2)(x)
+
+        out = ContextGating(name="output")(x)
+
+        model = Model([in1, in2], out)
+        model.compile(optimizer="adam", loss="categorical_crossentropy")
+
+        return model
