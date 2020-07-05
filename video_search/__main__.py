@@ -95,6 +95,9 @@ def train_model(
 
 @app.command("predict")
 def predict_model(
+    model: NeuralNetwork = Option(
+        NeuralNetwork.simple, "--model", "-m", case_sensitive=False
+    ),
     weights_file: Optional[str] = Argument(None),
     media_folder: str = Option(
         FOLDER, help="The folder where the YouTube-8M files are stored"
@@ -102,13 +105,26 @@ def predict_model(
     batch: int = Option(BATCH_SIZE, help="Number of records to process per batch"),
     outfile: str = Option(OUTFILE, "-o", help="The output file"),
     calculate_map: bool = Option(
-        False, "--map", "-m", help="Calculate average map of the test dataset instead"
+        False, "--map", help="Calculate average map of the test dataset instead"
     ),
 ):
     kwargs = locals()
     log.info(f"Launching train function for model simple_model with arguments {kwargs}")
-    model = SimpleModel()
-    model.predict(**kwargs)
+    if model == NeuralNetwork.netvlad:
+        if batch == BATCH_SIZE:
+            # Assume no batch size was given, set it to default
+            batch = NETVLAD_BATCH_SIZE
+            kwargs["batch"] = NETVLAD_BATCH_SIZE
+        if batch > NETVLAD_BATCH_SIZE:
+            raise ValueError(
+                f"NetVLAD batch size must be <= {NETVLAD_BATCH_SIZE}, got {batch}"
+            )
+
+        m = NetVLADModel()
+    else:
+        m = SimpleModel()
+
+    m.predict(**kwargs)
 
 
 if __name__ == "__main__":

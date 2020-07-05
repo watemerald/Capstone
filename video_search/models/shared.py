@@ -6,6 +6,7 @@ import sys
 from multiprocessing import Pool
 from typing import Iterator, List, Optional, Tuple
 
+import video_search.models.netvlad as nv
 
 import numpy as np
 import pandas as pd
@@ -168,7 +169,14 @@ class NeuralNet:
                 # Load the latest weight file
                 latest = data["runs"][-1]
                 wfn = latest["file"]
-                model = tf.keras.models.load_model(wfn)
+                model = tf.keras.models.load_model(
+                    wfn,
+                    custom_objects={
+                        "ContextGating": nv.ContextGating,
+                        "NetVLAD": nv.NetVLAD,
+                        "MoE": nv.MoE,
+                    },
+                )
                 self.tensorboard.set_model(model)
                 self.log.info(f"Loaded weight file: {wfn}")
                 e_passed = latest["epoch"]
@@ -250,6 +258,7 @@ class NeuralNet:
         weights_file: Optional[str],
         outfile: Optional[str] = None,
         calculate_map: bool = False,
+        **kwargs,
     ):
         """
             Make a prediction using the latest trained weights
@@ -274,7 +283,14 @@ class NeuralNet:
             wfn = weights_file
 
         # model.load_weights(wfn)
-        model = tf.keras.models.load_model(wfn)
+        model = tf.keras.models.load_model(
+            wfn,
+            custom_objects={
+                "ContextGating": nv.ContextGating,
+                "NetVLAD": nv.NetVLAD,
+                "MoE": nv.MoE,
+            },
+        )
         self.log.info(f"loaded weight file: {wfn}")
 
         if calculate_map:
