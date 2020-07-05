@@ -15,6 +15,12 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 
 
+# Shared Constants about the dataset
+AUDIO_DATA = 128
+VIDEO_DATA = 1024
+OUTPUT_CLASSES = 4716
+
+
 class NeuralNet:
     def __init__(
         self, TENSORBOARD_LOG_DIR: str, WEIGHTS_DIR: str, DATA_FILE: str, log: Logger
@@ -78,8 +84,8 @@ class NeuralNet:
 
                 # Convert a list of labels into a 1D vector where all the labels are marked as 1
                 yss = np.array(tf_example.features.feature["labels"].int64_list.value)
-                # Hardcoded number of total classes. Maybe remove them in the future?
-                out = np.zeros(4716).astype(np.int8)
+
+                out = np.zeros(OUTPUT_CLASSES).astype(np.int8)
                 for y in yss:
                     out[y] = 1
 
@@ -101,6 +107,7 @@ class NeuralNet:
         save_interval: int,
         batch: int,
         load_model: bool = True,
+        keep_n_latest: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -159,10 +166,19 @@ class NeuralNet:
                 model = self.build_model(**kwargs)
                 self.tensorboard.set_model(model)
             else:
+                import video_search.models.netvlad as nv
+
                 # Load the latest weight file
                 latest = data["runs"][-1]
                 wfn = latest["file"]
-                model = tf.keras.models.load_model(wfn)
+                model = tf.keras.models.load_model(
+                    wfn,
+                    custom_objects={
+                        "ContextGating": nv.ContextGating,
+                        "NetVLAD": nv.NetVLAD,
+                        "MoE": nv.MoE,
+                    },
+                )
                 self.tensorboard.set_model(model)
                 self.log.info(f"Loaded weight file: {wfn}")
                 e_passed = latest["epoch"]
@@ -226,8 +242,23 @@ class NeuralNet:
                             "file": wfile,
                         }
 
+                    # Delete the old weight files
+                    if keep_n_latest is not None:
+                        removed = data["runs"][:-keep_n_latest]
+                        for f in removed:
+                            fl = f["file"]
+                            os.remove(fl)
+                            self.log.info(f"removed weight file {fl}")
+
+                        data["runs"] = data["runs"][-keep_n_latest:]
+
+                        # Set best_map once again
+                        b = max(data["runs"], key=lambda r: r["map"])
+                        best_map = b["map"]
+                        data["best"] = b
+
                     with open(self.DATA_FILE, "w") as f:
-                        json.dump(data, f)
+                        json.dump(data, f, indent=4)
 
                     self.tensorboard.on_epoch_end(n, {"loss": loss, "mAP": g})
 
@@ -244,6 +275,7 @@ class NeuralNet:
         weights_file: Optional[str],
         outfile: Optional[str] = None,
         calculate_map: bool = False,
+        **kwargs,
     ):
         """
             Make a prediction using the latest trained weights
@@ -267,8 +299,17 @@ class NeuralNet:
         else:
             wfn = weights_file
 
+        import video_search.models.netvlad as nv
+
         # model.load_weights(wfn)
-        model = tf.keras.models.load_model(wfn)
+        model = tf.keras.models.load_model(
+            wfn,
+            custom_objects={
+                "ContextGating": nv.ContextGating,
+                "NetVLAD": nv.NetVLAD,
+                "MoE": nv.MoE,
+            },
+        )
         self.log.info(f"loaded weight file: {wfn}")
 
         if calculate_map:

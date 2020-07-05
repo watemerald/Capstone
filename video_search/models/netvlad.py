@@ -12,8 +12,8 @@ import numpy as np
 from tensorflow.keras.initializers import RandomUniform, Zeros
 
 
-from ..utils import create_logger
-from .shared import NeuralNet
+from video_search.utils import create_logger
+from video_search.models.shared import NeuralNet, AUDIO_DATA, VIDEO_DATA, OUTPUT_CLASSES
 
 log = create_logger(__name__, "file.log")
 
@@ -151,6 +151,16 @@ class NetVLAD(Layer):
     def compute_output_shape(self, input_shape):
         return tuple([None, self.output_dim])
 
+    def get_config(self):
+        config = {
+            "feature_size": self.feature_size,
+            "max_samples": self.max_samples,
+            "cluster_size": self.cluster_size,
+            "output_dim": self.output_dim,
+        }
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class MoE(Layer):
     """Mixture-of-experts layer.
@@ -206,13 +216,15 @@ class MoE(Layer):
         gating_outputs = K.bias_add(gating_outputs, self.gating_bias)
         gating_outputs = Softmax()(gating_outputs)
 
-        output = K.sum(
+        gating_outputs = K.sum(
             expert_outputs
             * K.repeat_elements(
                 K.expand_dims(gating_outputs, axis=1), self.units, axis=1
             ),
             axis=2,
         )
+
+        output = Softmax()(gating_outputs)
 
         return output
 
@@ -221,12 +233,19 @@ class MoE(Layer):
         output_shape[-1] = self.units
         return tuple(output_shape)
 
+    def get_config(self):
+        config = {"units": self.units, "n_experts": self.n_experts}
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class NetVLADModel(NeuralNet):
     def __init__(self):
         super().__init__(TENSORBOARD_LOG_DIR, WEIGHTS_DIR, DATA_FILE, log)
 
-    def build_model(self) -> Model:
+    def build_model(
+        self, netvlad_cluster_size: int = 256, n_experts: int = 2, **kwargs
+    ) -> Model:
         """Builds a gated NetVLAD classification model
 
         Reference:
@@ -234,18 +253,16 @@ class NetVLADModel(NeuralNet):
         "Learnable pooling with context gating for video classification."
         arXiv preprint arXiv:1706.06905 (2017).
         """
-        NETVLAD_CLUSTER_SIZE = 256
+        in1 = Input((AUDIO_DATA,), name="x1")
+        x1 = NetVLAD(AUDIO_DATA, 1, netvlad_cluster_size, AUDIO_DATA)(in1)
 
-        in1 = Input((128,), name="x1")
-        x1 = NetVLAD(128, 0, NETVLAD_CLUSTER_SIZE, 128)(in1)
-
-        in2 = Input((1024,), name="x2")
-        x2 = NetVLAD(1024, 0, NETVLAD_CLUSTER_SIZE, 1024)(in2)
+        in2 = Input((VIDEO_DATA,), name="x2")
+        x2 = NetVLAD(VIDEO_DATA, 1, netvlad_cluster_size, VIDEO_DATA)(in2)
 
         x = concatenate([x1, x2], 1)
         x = ContextGating()(x)
 
-        x = MoE(4716, 2)(x)
+        x = MoE(OUTPUT_CLASSES, n_experts)(x)
 
         out = ContextGating(name="output")(x)
 
