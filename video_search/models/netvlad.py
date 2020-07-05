@@ -13,7 +13,7 @@ from tensorflow.keras.initializers import RandomUniform, Zeros
 
 
 from ..utils import create_logger
-from .shared import NeuralNet
+from .shared import NeuralNet, AUDIO_DATA, VIDEO_DATA, OUTPUT_CLASSES
 
 log = create_logger(__name__, "file.log")
 
@@ -226,7 +226,7 @@ class NetVLADModel(NeuralNet):
     def __init__(self):
         super().__init__(TENSORBOARD_LOG_DIR, WEIGHTS_DIR, DATA_FILE, log)
 
-    def build_model(self) -> Model:
+    def build_model(self, netvlad_cluster_size: int = 256, n_experts: int = 2) -> Model:
         """Builds a gated NetVLAD classification model
 
         Reference:
@@ -234,18 +234,16 @@ class NetVLADModel(NeuralNet):
         "Learnable pooling with context gating for video classification."
         arXiv preprint arXiv:1706.06905 (2017).
         """
-        NETVLAD_CLUSTER_SIZE = 256
+        in1 = Input((AUDIO_DATA,), name="x1")
+        x1 = NetVLAD(AUDIO_DATA, 0, netvlad_cluster_size, AUDIO_DATA)(in1)
 
-        in1 = Input((128,), name="x1")
-        x1 = NetVLAD(128, 0, NETVLAD_CLUSTER_SIZE, 128)(in1)
-
-        in2 = Input((1024,), name="x2")
-        x2 = NetVLAD(1024, 0, NETVLAD_CLUSTER_SIZE, 1024)(in2)
+        in2 = Input((VIDEO_DATA,), name="x2")
+        x2 = NetVLAD(VIDEO_DATA, 0, netvlad_cluster_size, VIDEO_DATA)(in2)
 
         x = concatenate([x1, x2], 1)
         x = ContextGating()(x)
 
-        x = MoE(4716, 2)(x)
+        x = MoE(OUTPUT_CLASSES, n_experts)(x)
 
         out = ContextGating(name="output")(x)
 

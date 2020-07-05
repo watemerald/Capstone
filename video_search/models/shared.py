@@ -15,6 +15,12 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 
 
+# Shared Constants about the dataset
+AUDIO_DATA = 128
+VIDEO_DATA = 1024
+OUTPUT_CLASSES = 4716
+
+
 class NeuralNet:
     def __init__(
         self, TENSORBOARD_LOG_DIR: str, WEIGHTS_DIR: str, DATA_FILE: str, log: Logger
@@ -79,7 +85,7 @@ class NeuralNet:
                 # Convert a list of labels into a 1D vector where all the labels are marked as 1
                 yss = np.array(tf_example.features.feature["labels"].int64_list.value)
                 # Hardcoded number of total classes. Maybe remove them in the future?
-                out = np.zeros(4716).astype(np.int8)
+                out = np.zeros(OUTPUT_CLASSES).astype(np.int8)
                 for y in yss:
                     out[y] = 1
 

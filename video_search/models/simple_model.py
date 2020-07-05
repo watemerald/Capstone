@@ -14,7 +14,7 @@ from tensorflow.keras.models import Model
 
 from ..utils import create_logger
 
-from .shared import NeuralNet
+from .shared import NeuralNet, AUDIO_DATA, VIDEO_DATA, OUTPUT_CLASSES
 
 # Adapted from https://www.kaggle.com/drn01z3/keras-baseline-on-video-features-0-7941-lb/code
 
@@ -62,16 +62,16 @@ class SimpleModel(NeuralNet):
                 Model: A simple YouTube-8M Video Level model
         """
         # Input 1 is the audio information
-        in1 = Input((128,), name="x1")
+        in1 = Input((AUDIO_DATA,), name="x1")
         x1 = fc_block(in1, n=hidden_neurons, d=dropout_rate)
 
         # Input 2 is the video information
-        in2 = Input((1024,), name="x2")
+        in2 = Input((VIDEO_DATA,), name="x2")
         x2 = fc_block(in2, n=hidden_neurons, d=dropout_rate)
 
         x = concatenate([x1, x2], 1)
         x = fc_block(x, n=hidden_neurons, d=dropout_rate)
-        out = Dense(4716, activation="sigmoid", name="output")(x)
+        out = Dense(OUTPUT_CLASSES, activation="sigmoid", name="output")(x)
 
         model = Model([in1, in2], out)
         model.compile(optimizer="adam", loss="categorical_crossentropy")
