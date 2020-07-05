@@ -1,10 +1,12 @@
+from enum import Enum
 from typing import Optional
 
 import typer
 from typer import Argument, Option
 
-from .models.simple_model import SimpleModel
-from .utils import create_logger
+from video_search.models.netvlad import NetVLADModel
+from video_search.models.simple_model import SimpleModel
+from video_search.utils import create_logger
 
 app = typer.Typer()
 
@@ -28,11 +30,23 @@ OUTFILE = "out1"
 SIMPLE_MODEL_DROPOUT_RATE = 0.25
 SIMPLE_MODEL_BLOCK_NEURONS = 1024
 
+# NetVLAD model parameters
+NETVLAD_CLUSTER_SIZE = 256
+NETVLAD_N_EXPERTS = 2
+
+
+class NeuralNetwork(str, Enum):
+    simple = "simple"
+    netvlad = "netvlad"
+
 
 @app.command("train")
 def train_model(
     media_folder: str = Option(
         FOLDER, help="The folder where the YouTube-8M files are stored"
+    ),
+    model: NeuralNetwork = Option(
+        NeuralNetwork.simple, "--model", "-m", case_sensitive=False
     ),
     batch: int = Option(BATCH_SIZE, help="Number of records to process per batch"),
     epochs: int = Option(N_EPOCHS, help="Total number of epochs to train for"),
@@ -46,11 +60,24 @@ def train_model(
         SIMPLE_MODEL_BLOCK_NEURONS,
         help="The number of neurons in the first layer in the simple model's fully connected block",
     ),
+    cluster_size: int = Option(
+        NETVLAD_CLUSTER_SIZE, help="The NetVLAD layer cluster size"
+    ),
+    n_experts: int = Option(
+        NETVLAD_N_EXPERTS,
+        "--experts",
+        help="The number of experts in the Mixture-of-experts classifier",
+    ),
 ):
     kwargs = locals()
     log.info(f"Launching train function for model simple_model with arguments {kwargs}")
-    model = SimpleModel()
-    model.train(**kwargs)
+
+    if model == NeuralNetwork.netvlad:
+        m = NetVLADModel()
+    else:
+        m = SimpleModel()
+
+    m.train(**kwargs)
 
 
 @app.command("predict")

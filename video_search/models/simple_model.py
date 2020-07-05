@@ -12,9 +12,9 @@ from tensorflow.keras.layers import (
 )
 from tensorflow.keras.models import Model
 
-from ..utils import create_logger
+from video_search.utils import create_logger
 
-from .shared import NeuralNet, AUDIO_DATA, VIDEO_DATA, OUTPUT_CLASSES
+from video_search.models.shared import NeuralNet, AUDIO_DATA, VIDEO_DATA, OUTPUT_CLASSES
 
 # Adapted from https://www.kaggle.com/drn01z3/keras-baseline-on-video-features-0-7941-lb/code
 
