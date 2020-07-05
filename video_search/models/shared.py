@@ -6,7 +6,6 @@ import sys
 from multiprocessing import Pool
 from typing import Iterator, List, Optional, Tuple
 
-import video_search.models.netvlad as nv
 
 import numpy as np
 import pandas as pd
@@ -85,7 +84,7 @@ class NeuralNet:
 
                 # Convert a list of labels into a 1D vector where all the labels are marked as 1
                 yss = np.array(tf_example.features.feature["labels"].int64_list.value)
-                # Hardcoded number of total classes. Maybe remove them in the future?
+
                 out = np.zeros(OUTPUT_CLASSES).astype(np.int8)
                 for y in yss:
                     out[y] = 1
@@ -167,6 +166,8 @@ class NeuralNet:
                 model = self.build_model(**kwargs)
                 self.tensorboard.set_model(model)
             else:
+                import video_search.models.netvlad as nv
+
                 # Load the latest weight file
                 latest = data["runs"][-1]
                 wfn = latest["file"]
@@ -297,6 +298,8 @@ class NeuralNet:
             wfn = best["file"]
         else:
             wfn = weights_file
+
+        import video_search.models.netvlad as nv
 
         # model.load_weights(wfn)
         model = tf.keras.models.load_model(

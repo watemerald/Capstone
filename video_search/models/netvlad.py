@@ -216,13 +216,15 @@ class MoE(Layer):
         gating_outputs = K.bias_add(gating_outputs, self.gating_bias)
         gating_outputs = Softmax()(gating_outputs)
 
-        output = K.sum(
+        gating_outputs = K.sum(
             expert_outputs
             * K.repeat_elements(
                 K.expand_dims(gating_outputs, axis=1), self.units, axis=1
             ),
             axis=2,
         )
+
+        output = Softmax()(gating_outputs)
 
         return output
 
