@@ -16,12 +16,14 @@ log = create_logger(__name__, "file.log")
 FOLDER = "/media/watemerald/Seagate/data/yt8m/video/"
 
 BATCH_SIZE = 10 * 1024
+# Netvlad is a more complex model, fat fewer tensors could be loaded at once
+NETVLAD_BATCH_SIZE = 256
 
 # Number of epochs
-N_EPOCHS = 100
+N_EPOCHS = 15
 
 # Save the weights every N iterations
-N_ITR = 10
+N_ITR = 500
 
 # Default output file for predictions
 OUTFILE = "out1"
@@ -31,7 +33,7 @@ SIMPLE_MODEL_DROPOUT_RATE = 0.25
 SIMPLE_MODEL_BLOCK_NEURONS = 1024
 
 # NetVLAD model parameters
-NETVLAD_CLUSTER_SIZE = 256
+NETVLAD_CLUSTER_SIZE = 128
 NETVLAD_N_EXPERTS = 2
 
 
@@ -48,7 +50,9 @@ def train_model(
     model: NeuralNetwork = Option(
         NeuralNetwork.simple, "--model", "-m", case_sensitive=False
     ),
-    batch: int = Option(BATCH_SIZE, help="Number of records to process per batch"),
+    batch: int = Option(
+        BATCH_SIZE, "--batch", "-b", help="Number of records to process per batch"
+    ),
     epochs: int = Option(N_EPOCHS, help="Total number of epochs to train for"),
     save_interval: int = Option(N_ITR, help="How often to save intermediate results"),
     load_model: bool = Option(True, help="Load the latest model to train off of"),
@@ -73,6 +77,15 @@ def train_model(
     log.info(f"Launching train function for model simple_model with arguments {kwargs}")
 
     if model == NeuralNetwork.netvlad:
+        if batch == BATCH_SIZE:
+            # Assume no batch size was given, set it to default
+            batch = NETVLAD_BATCH_SIZE
+            kwargs["batch"] = NETVLAD_BATCH_SIZE
+        if batch > NETVLAD_BATCH_SIZE:
+            raise ValueError(
+                f"NetVLAD batch size must be <= {NETVLAD_BATCH_SIZE}, got {batch}"
+            )
+
         m = NetVLADModel()
     else:
         m = SimpleModel()
