@@ -108,6 +108,7 @@ class NeuralNet:
         save_interval: int,
         batch: int,
         load_model: bool = True,
+        keep_n_latest: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -240,8 +241,23 @@ class NeuralNet:
                             "file": wfile,
                         }
 
+                    # Delete the old weight files
+                    if keep_n_latest is not None:
+                        removed = data["runs"][:-keep_n_latest]
+                        for f in removed:
+                            fl = f["file"]
+                            os.remove(fl)
+                            self.log.info(f"removed weight file {fl}")
+
+                        data["runs"] = data["runs"][-keep_n_latest:]
+
+                        # Set best_map once again
+                        b = max(data["runs"], key=lambda r: r["map"])
+                        best_map = b["map"]
+                        data["best"] = b
+
                     with open(self.DATA_FILE, "w") as f:
-                        json.dump(data, f)
+                        json.dump(data, f, indent=4)
 
                     self.tensorboard.on_epoch_end(n, {"loss": loss, "mAP": g})
 

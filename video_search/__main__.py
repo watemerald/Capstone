@@ -25,6 +25,10 @@ N_EPOCHS = 15
 # Save the weights every N iterations
 N_ITR = 500
 
+# The number of latest models to keep to save disk space
+# If None, then keep all
+N_LATEST = 20
+
 # Default output file for predictions
 OUTFILE = "out1"
 
@@ -71,6 +75,9 @@ def train_model(
         NETVLAD_N_EXPERTS,
         "--experts",
         help="The number of experts in the Mixture-of-experts classifier",
+    ),
+    keep_n_latest: Optional[int] = Option(
+        N_LATEST, "--latest", help="The number of latest model files to keep"
     ),
 ):
     kwargs = locals()
