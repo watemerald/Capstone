@@ -1,0 +1,25 @@
+{
+    "best": {
+        "iter": 20,
+        "epoch": 0,
+        "map": 0.5588811979207264,
+        "ise": 20,
+        "file": "logs/simple/weights/0.55888_0_20_20.h5"
+    },
+    "runs": [
+        {
+            "iter": 10,
+            "epoch": 0,
+            "map": 0.5304684829514974,
+            "ise": 10,
+            "file": "logs/simple/weights/0.53047_0_10_10.h5"
+        },
+        {
+            "iter": 20,
+            "epoch": 0,
+            "map": 0.5588811979207264,
+            "ise": 20,
+            "file": "logs/simple/weights/0.55888_0_20_20.h5"
+        }
+    ]
+}

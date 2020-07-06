@@ -147,4 +147,3 @@ cython_debug/
 .python-version
 
 weights
-logs

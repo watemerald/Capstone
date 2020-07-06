@@ -1,0 +1,18 @@
+{
+    "best": {
+        "iter": 1000,
+        "epoch": 0,
+        "map": 0.6834967850383378,
+        "ise": 1000,
+        "file": "logs/netvlad/weights/0.68350_0_1000_1000.h5"
+    },
+    "runs": [
+        {
+            "iter": 1000,
+            "epoch": 0,
+            "map": 0.6834967850383378,
+            "ise": 1000,
+            "file": "logs/netvlad/weights/0.68350_0_1000_1000.h5"
+        }
+    ]
+}
