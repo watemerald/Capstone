@@ -1,6 +1,7 @@
 import logging
 import os
 from functools import lru_cache
+from typing import List, Union
 
 import tensorflow as tf
 
@@ -27,7 +28,7 @@ def count_records(folder: str, tp: str) -> int:
     return ret
 
 
-def create_logger(name: str, log_file: str) -> logging.Logger:
+def create_logger(name: str, log_files: Union[List[str], str]) -> logging.Logger:
     log = logging.getLogger(name)
     log.setLevel(logging.INFO)
 
@@ -37,11 +38,15 @@ def create_logger(name: str, log_file: str) -> logging.Logger:
     handler.setFormatter(formatter)
     log.addHandler(handler)
 
-    # create error file handler and set level to error
-    handler = logging.FileHandler(log_file, "w")
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(levelname)s - %(message)s")
-    handler.setFormatter(formatter)
-    log.addHandler(handler)
+    if not isinstance(log_files, list):
+        log_files = [log_files]
+
+    for f in log_files:
+        # create error file handler and set level to error
+        handler = logging.FileHandler(f, "a")
+        handler.setLevel(logging.INFO)
+        formatter = logging.Formatter("%(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
+        log.addHandler(handler)
 
     return log

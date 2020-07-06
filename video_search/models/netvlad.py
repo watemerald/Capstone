@@ -15,12 +15,18 @@ from tensorflow.keras.initializers import RandomUniform, Zeros
 from video_search.utils import create_logger
 from video_search.models.shared import NeuralNet, AUDIO_DATA, VIDEO_DATA, OUTPUT_CLASSES
 
-log = create_logger(__name__, "file.log")
 
 TENSORBOARD_LOG_DIR = "logs/netvlad"
 WEIGHTS_DIR = os.path.join(TENSORBOARD_LOG_DIR, "weights/")
 DATA_FILE = os.path.join(TENSORBOARD_LOG_DIR, "data.json")
 
+# Create a weights directory to save the checkpoint files
+if not os.path.exists(WEIGHTS_DIR):
+    os.makedirs(WEIGHTS_DIR)
+
+log = create_logger(
+    __name__, ["file.log", os.path.join(TENSORBOARD_LOG_DIR, "netvlad.log")]
+)
 
 # Adapted from https://github.com/antoine77340/LOUPE/blob/master/loupe.py
 # Translated into custom keras layers

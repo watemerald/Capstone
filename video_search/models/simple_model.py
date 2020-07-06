@@ -19,11 +19,17 @@ from video_search.models.shared import NeuralNet, AUDIO_DATA, VIDEO_DATA, OUTPUT
 # Adapted from https://www.kaggle.com/drn01z3/keras-baseline-on-video-features-0-7941-lb/code
 
 
-log = create_logger(__name__, "file.log")
-
 TENSORBOARD_LOG_DIR = "logs/simple"
 WEIGHTS_DIR = os.path.join(TENSORBOARD_LOG_DIR, "weights/")
 DATA_FILE = os.path.join(TENSORBOARD_LOG_DIR, "data.json")
+
+# Create a weights directory to save the checkpoint files
+if not os.path.exists(WEIGHTS_DIR):
+    os.makedirs(WEIGHTS_DIR)
+
+log = create_logger(
+    __name__, ["file.log", os.path.join(TENSORBOARD_LOG_DIR, "simple.log")]
+)
 
 
 def fc_block(x: Layer, n: int = 1024, d: float = 0.2) -> Layer:

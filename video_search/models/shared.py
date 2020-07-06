@@ -117,10 +117,6 @@ class NeuralNet:
                 load_model: if true, load the latest weights file and train from it
         """
 
-        # Create a weights directory to save the checkpoint files
-        if not os.path.exists(self.WEIGHTS_DIR):
-            os.makedirs(self.WEIGHTS_DIR)
-
         # The number of records per batch
         batch = batch
 
