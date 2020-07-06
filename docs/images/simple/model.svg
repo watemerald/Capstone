@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 1280 720" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g id="audio_data" transform="matrix(1.18399,0,0,0.887994,-98.0513,-66.2304)">
+        <g transform="matrix(0.5324,0,0,0.5324,87.2573,128.187)">
+            <path d="M257.074,117.352C257.074,102.837 248.235,91.052 237.349,91.052L56.605,91.052C45.719,91.052 36.88,102.837 36.88,117.352L36.88,169.952C36.88,184.467 45.719,196.252 56.605,196.252L237.349,196.252C248.235,196.252 257.074,184.467 257.074,169.952L257.074,117.352Z" style="fill:rgb(189,207,236);"/>
+        </g>
+        <g transform="matrix(1.62345,0,0,1.62345,-83.9921,-33.4837)">
+            <text x="124.305px" y="146.554px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;">Audio Data</text>
+        </g>
+        <g transform="matrix(1,0,0,1,-9.27188,-4.32164)">
+            <text x="164.448px" y="226.102px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;">128</text>
+        </g>
+    </g>
+    <g id="video_data" transform="matrix(1.18399,0,0,0.887994,-98.0513,10.5879)">
+        <g transform="matrix(0.5324,0,0,0.5324,87.2573,128.187)">
+            <path d="M257.074,117.352C257.074,102.837 248.235,91.052 237.349,91.052L56.605,91.052C45.719,91.052 36.88,102.837 36.88,117.352L36.88,169.952C36.88,184.467 45.719,196.252 56.605,196.252L237.349,196.252C248.235,196.252 257.074,184.467 257.074,169.952L257.074,117.352Z" style="fill:rgb(189,207,236);"/>
+        </g>
+        <g transform="matrix(1.62345,0,0,1.62345,-84.1063,-33.4837)">
+            <text x="124.305px" y="146.554px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;">V<tspan x="132.092px 134.758px " y="146.554px 146.554px ">id</tspan>eo Data</text>
+        </g>
+        <g transform="matrix(1,0,0,1,-11.6685,-3.98466)">
+            <text x="164.448px" y="226.102px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;">1024</text>
+        </g>
+    </g>
+    <g id="arrow_1" transform="matrix(1.15272,0,0,0.864542,-91.6124,-65.7257)">
+        <path d="M224.617,212.61L224.617,206.66L285.242,206.66L285.242,201.135L291.617,209.635L285.242,218.135L285.242,212.61L224.617,212.61Z" style="fill:rgb(0,28,73);"/>
+    </g>
+    <g id="arrow_2" transform="matrix(1.15272,0,0,0.864542,-91.6124,11.0925)">
+        <path d="M224.617,212.61L224.617,206.66L285.242,206.66L285.242,201.135L291.617,209.635L285.242,218.135L285.242,212.61L224.617,212.61Z" style="fill:rgb(0,28,73);"/>
+    </g>
+    <g id="netvlad_1" transform="matrix(1.18399,0,0,0.887994,-98.0513,-66.2304)">
+        <g transform="matrix(0.805966,0,0,0.797224,126.78,63.8271)">
+            <path d="M376.995,154.069C376.995,141.599 369.484,131.476 360.233,131.476L218.474,131.476C209.224,131.476 201.713,141.599 201.713,154.069L201.713,199.256C201.713,211.726 209.224,221.85 218.474,221.85L360.233,221.85C369.484,221.85 376.995,211.726 376.995,199.256L376.995,154.069Z" style="fill:rgb(151,243,132);"/>
+        </g>
+        <g transform="matrix(1.83122,0,0,1.83122,-284.291,-161.235)">
+            <text x="326.682px" y="204.037px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;">FC Block</text>
+        </g>
+    </g>
+    <g id="netvlad_11" serif:id="netvlad_1" transform="matrix(1.18399,0,0,0.887994,201.469,210.246)">
+        <g transform="matrix(0.805966,0,0,0.797224,126.78,63.8271)">
+            <path d="M376.995,154.069C376.995,141.599 369.484,131.476 360.233,131.476L218.474,131.476C209.224,131.476 201.713,141.599 201.713,154.069L201.713,199.256C201.713,211.726 209.224,221.85 218.474,221.85L360.233,221.85C369.484,221.85 376.995,211.726 376.995,199.256L376.995,154.069Z" style="fill:rgb(151,243,132);"/>
+        </g>
+        <g transform="matrix(1.83122,0,0,1.83122,-284.291,-161.235)">
+            <text x="326.682px" y="204.037px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;">FC Block</text>
+        </g>
+    </g>
+    <g id="netvlad_12" serif:id="netvlad_1" transform="matrix(1.18399,0,0,0.887994,-98.0513,10.5879)">
+        <g transform="matrix(0.805966,0,0,0.797224,126.78,63.8271)">
+            <path d="M376.995,154.069C376.995,141.599 369.484,131.476 360.233,131.476L218.474,131.476C209.224,131.476 201.713,141.599 201.713,154.069L201.713,199.256C201.713,211.726 209.224,221.85 218.474,221.85L360.233,221.85C369.484,221.85 376.995,211.726 376.995,199.256L376.995,154.069Z" style="fill:rgb(151,243,132);"/>
+        </g>
+        <g transform="matrix(1,0,0,1,-12.7471,8.37461)">
+            <text x="326.682px" y="204.037px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:22px;">FC Block</text>
+        </g>
+    </g>
+    <g id="netvlad_13" serif:id="netvlad_1" transform="matrix(1.18399,0,0,0.887994,-114.353,384.553)">
+        <g transform="matrix(0.805966,0,0,0.797224,126.78,63.8271)">
+            <path d="M376.995,154.069C376.995,141.599 369.484,131.476 360.233,131.476L218.474,131.476C209.224,131.476 201.713,141.599 201.713,154.069L201.713,199.256C201.713,211.726 209.224,221.85 218.474,221.85L360.233,221.85C369.484,221.85 376.995,211.726 376.995,199.256L376.995,154.069Z" style="fill:rgb(151,243,132);"/>
+        </g>
+        <g transform="matrix(1,0,0,1,-12.7471,8.37461)">
+            <text x="326.682px" y="204.037px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:22px;">FC Layer</text>
+        </g>
+    </g>
+    <g transform="matrix(1,0,0,1,89.7085,15.7669)">
+        <text x="352.768px" y="387.136px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:31px;">Where</text>
+    </g>
+    <g transform="matrix(1,0,0,1,368.034,15.7669)">
+        <text x="352.768px" y="387.136px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:31px;">Is</text>
+    </g>
+    <g id="arrow_21" serif:id="arrow_2" transform="matrix(1.15272,0,0,0.864542,-107.914,385.057)">
+        <path d="M224.617,212.61L224.617,206.66L285.242,206.66L285.242,201.135L291.617,209.635L285.242,218.135L285.242,212.61L224.617,212.61Z" style="fill:rgb(0,28,73);"/>
+    </g>
+    <g id="arrow_22" serif:id="arrow_2" transform="matrix(1.15272,0,0,0.864542,136.582,386.879)">
+        <path d="M224.617,212.61L224.617,206.66L285.242,206.66L285.242,201.135L291.617,209.635L285.242,218.135L285.242,212.61L224.617,212.61Z" style="fill:rgb(0,28,73);"/>
+    </g>
+    <g id="netvlad_14" serif:id="netvlad_1" transform="matrix(1.18399,0,0,0.887994,130.143,386.375)">
+        <g>
+            <g transform="matrix(0.805966,0,0,0.797224,126.78,63.8271)">
+                <path d="M376.995,154.069C376.995,141.599 369.484,131.476 360.233,131.476L218.474,131.476C209.224,131.476 201.713,141.599 201.713,154.069L201.713,199.256C201.713,211.726 209.224,221.85 218.474,221.85L360.233,221.85C369.484,221.85 376.995,211.726 376.995,199.256L376.995,154.069Z" style="fill:rgb(151,243,132);"/>
+            </g>
+            <g transform="matrix(1,0,0,1,-33.9872,-2.98526)">
+                <text x="365.8px" y="204.037px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:22px;">Batch</text>
+                <text x="326.682px" y="226.757px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:22px;">Normalization</text>
+            </g>
+        </g>
+    </g>
+    <g id="netvlad_15" serif:id="netvlad_1" transform="matrix(1.18399,0,0,0.887994,374.64,384.553)">
+        <g transform="matrix(0.805966,0,0,0.797224,126.78,63.8271)">
+            <path d="M376.995,154.069C376.995,141.599 369.484,131.476 360.233,131.476L218.474,131.476C209.224,131.476 201.713,141.599 201.713,154.069L201.713,199.256C201.713,211.726 209.224,221.85 218.474,221.85L360.233,221.85C369.484,221.85 376.995,211.726 376.995,199.256L376.995,154.069Z" style="fill:rgb(151,243,132);"/>
+        </g>
+        <g transform="matrix(1,0,0,1,-34.8198,-5.03701)">
+            <text x="349.305px" y="204.037px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:22px;">FC Layer</text>
+            <text x="326.682px" y="226.757px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:22px;">(Leaky ReLU)</text>
+        </g>
+    </g>
+    <g id="arrow_23" serif:id="arrow_2" transform="matrix(1.15272,0,0,0.864542,381.079,385.057)">
+        <path d="M224.617,212.61L224.617,206.66L285.242,206.66L285.242,201.135L291.617,209.635L285.242,218.135L285.242,212.61L224.617,212.61Z" style="fill:rgb(0,28,73);"/>
+    </g>
+    <g id="netvlad_16" serif:id="netvlad_1" transform="matrix(1.18399,0,0,0.887994,619.136,384.553)">
+        <g transform="matrix(0.805966,0,0,0.797224,126.78,63.8271)">
+            <path d="M376.995,154.069C376.995,141.599 369.484,131.476 360.233,131.476L218.474,131.476C209.224,131.476 201.713,141.599 201.713,154.069L201.713,199.256C201.713,211.726 209.224,221.85 218.474,221.85L360.233,221.85C369.484,221.85 376.995,211.726 376.995,199.256L376.995,154.069Z" style="fill:rgb(151,243,132);"/>
+        </g>
+        <g transform="matrix(1,0,0,1,-12.7471,8.37461)">
+            <text x="326.682px" y="204.037px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:22px;">Droupout</text>
+        </g>
+    </g>
+    <g id="arrow_24" serif:id="arrow_2" transform="matrix(1.15272,0,0,0.864542,625.575,385.057)">
+        <path d="M224.617,212.61L224.617,206.66L285.242,206.66L285.242,201.135L291.617,209.635L285.242,218.135L285.242,212.61L224.617,212.61Z" style="fill:rgb(0,28,73);"/>
+    </g>
+    <g id="arrow_3" transform="matrix(1.18399,0,0,0.887994,146.755,-70.5169)">
+        <path d="M224.617,212.61L224.617,206.66L285.242,206.66L285.242,201.135L291.617,209.635L285.242,218.135L285.242,212.61L224.617,212.61Z" style="fill:rgb(0,28,73);"/>
+    </g>
+    <g id="arrow_4" transform="matrix(1.18399,0,0,0.887994,146.755,6.10483)">
+        <path d="M224.617,212.61L224.617,206.66L285.242,206.66L285.242,201.135L291.617,209.635L285.242,218.135L285.242,212.61L224.617,212.61Z" style="fill:rgb(0,28,73);"/>
+    </g>
+    <g id="FC_layer" transform="matrix(1.18399,0,0,0.892597,-97.1565,-66.8814)">
+        <path d="M592.441,200.085C592.441,182.731 581.82,168.642 568.737,168.642L521.329,168.642C508.246,168.642 497.625,182.731 497.625,200.085L497.625,294.939C497.625,312.292 508.246,326.381 521.329,326.381L568.737,326.381C581.82,326.381 592.441,312.292 592.441,294.939L592.441,200.085Z" style="fill:rgb(151,243,132);"/>
+        <g transform="matrix(1,0,0,1,-15.686,-8.48467)">
+            <text x="518.691px" y="247.006px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:11.617px;">Fully Connected</text>
+            <text x="546.133px" y="259.003px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:11.617px;">Layer</text>
+            <text x="525.146px" y="270.999px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:11.617px;">(concatenate)</text>
+        </g>
+    </g>
+    <g id="arrow_25" serif:id="arrow_2" transform="matrix(1.15272,0,0,0.864542,345.368,-27.1914)">
+        <path d="M224.617,212.61L224.617,206.66L285.242,206.66L285.242,201.135L291.617,209.635L285.242,218.135L285.242,212.61L224.617,212.61Z" style="fill:rgb(0,28,73);"/>
+    </g>
+    <g id="netvlad_17" serif:id="netvlad_1" transform="matrix(1.18399,0,0,0.887994,338.929,-27.6961)">
+        <g transform="matrix(0.979376,0,0,0.954095,91.801,36.1138)">
+            <path d="M376.995,154.069C376.995,141.599 369.598,131.476 360.487,131.476L218.221,131.476C209.11,131.476 201.713,141.599 201.713,154.069L201.713,199.256C201.713,211.726 209.11,221.85 218.221,221.85L360.487,221.85C369.598,221.85 376.995,211.726 376.995,199.256L376.995,154.069Z" style="fill:rgb(151,243,132);"/>
+        </g>
+        <g transform="matrix(1,0,0,1,-16.0878,-5.03701)">
+            <text x="326.682px" y="204.037px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:22px;">Classiﬁcation</text>
+            <text x="367.642px" y="226.757px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:22px;">layer</text>
+        </g>
+    </g>
+</svg>
