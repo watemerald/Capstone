@@ -2,7 +2,6 @@ import logging
 import os
 import shlex
 import subprocess
-import tempfile
 from functools import lru_cache
 from typing import List, Tuple, Union
 
@@ -75,17 +74,18 @@ def url_to_mean_array(url: str) -> Tuple[np.array, np.array]:
     """
     try:
         # Create temporary directory to store the file
-        temp_dir = tempfile.TemporaryDirectory()
+        temp_dir = "/tmp/video_search"
 
         # Start Docker container
-        SHARED_FOLDER = temp_dir.name
 
-        cmd = f"docker run -dit -v {SHARED_FOLDER}:/v_folder --name mediapipe mediapipe:latest"
+        cmd = (
+            f"docker run -dit -v {temp_dir}:/v_folder --name mediapipe mediapipe:latest"
+        )
         run_process(cmd)
 
         # Download youtube video from given url
 
-        video_out = os.path.join(temp_dir.name, "vid.mp4")
+        video_out = os.path.join(temp_dir, "vid.mp4")
 
         cmd = f"youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4' '{url}' -o {video_out}"
         run_process(cmd)
@@ -94,19 +94,22 @@ def url_to_mean_array(url: str) -> Tuple[np.array, np.array]:
         # Following instructions from
         # https://github.com/google/mediapipe/tree/master/mediapipe/examples/desktop/youtube8m
 
-        cmd = "docker exec mediapipe python -m mediapipe.examples.desktop.youtube8m.generate_input_sequence_example \
+        cmd = "docker exec mediapipe \
+        python -m mediapipe.examples.desktop.youtube8m.generate_input_sequence_example \
         --path_to_input_video=/v_folder/vid.mp4 \
         --clip_end_time_sec=600"
 
         run_process(cmd)
 
-        cmd = "docker exec mediapipe bazel build -c opt --linkopt=-s \
+        cmd = "docker exec mediapipe \
+        bazel build -c opt --linkopt=-s \
         --define MEDIAPIPE_DISABLE_GPU=1 --define no_aws_support=true \
         mediapipe/examples/desktop/youtube8m:extract_yt8m_features"
 
         run_process(cmd)
 
-        cmd = "docker exec mediapipe bazel-bin/mediapipe/examples/desktop/youtube8m/extract_yt8m_features \
+        cmd = "docker exec mediapipe \
+        GLOG_logtostderr=1 bazel-bin/mediapipe/examples/desktop/youtube8m/extract_yt8m_features \
         --calculator_graph_config_file=mediapipe/graphs/youtube8m/feature_extraction.pbtxt \
         --input_side_packets=input_sequence_example=/tmp/mediapipe/metadata.pb  \
         --output_side_packets=output_sequence_example=/v_folder/features.pb"
@@ -116,7 +119,7 @@ def url_to_mean_array(url: str) -> Tuple[np.array, np.array]:
         # Because of the attached volume both the video and features file will available
         # from the temp directory
 
-        features_file = os.path.join(temp_dir.name, "features.pb")
+        features_file = os.path.join(temp_dir, "features.pb")
 
         sequence_example = open(features_file, "rb").read()
         example = tf.train.SequenceExample.FromString(sequence_example)
@@ -140,3 +143,4 @@ def url_to_mean_array(url: str) -> Tuple[np.array, np.array]:
         # Clean up docker state
         run_process("docker stop mediapipe")
         run_process("docker container rm mediapipe")
+        run_process(f"rm {video_out}")

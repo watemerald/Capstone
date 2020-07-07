@@ -405,7 +405,7 @@ class NeuralNet:
         mean_rgb = np.array([mean_rgb])
         mean_audio = np.array([mean_audio])
 
-        ypd = model.predict({"x1": mean_rgb, "x2": mean_audio}, verbose=1)
+        ypd = model.predict({"x1": mean_audio, "x2": mean_rgb}, verbose=1)
 
         return ypd
 

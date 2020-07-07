@@ -154,7 +154,9 @@ def predict_url(
     pred = m.predict_single_video(
         mean_rgb=rgb, mean_audio=audio, weights_file=weights_file
     )
-    print(pred)
+    import numpy as np
+
+    print(np.argsort(pred)[::-1])
 
 
 if __name__ == "__main__":
