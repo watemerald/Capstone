@@ -1,8 +1,12 @@
 import logging
 import os
+import shlex
+import subprocess
+import tempfile
 from functools import lru_cache
-from typing import List, Union
+from typing import List, Tuple, Union
 
+import numpy as np
 import tensorflow as tf
 
 
@@ -50,3 +54,89 @@ def create_logger(name: str, log_files: Union[List[str], str]) -> logging.Logger
         log.addHandler(handler)
 
     return log
+
+
+def run_process(cmd: str) -> subprocess.CompletedProcess:
+    return subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE)
+
+
+def url_to_mean_array(url: str) -> Tuple[np.array, np.array]:
+    """
+    Download a video, run feature extraction using mediapipe on it,
+    then calculate the elementwise mean for video and audio features to match
+    the format the models were trained on
+
+    Args:
+        url: the url of the video to be downloaded
+
+    Returns:
+        (array, array): a tuple of numpy arrays, (rgb_features, audio_features)
+
+    """
+    try:
+        # Create temporary directory to store the file
+        temp_dir = tempfile.TemporaryDirectory()
+
+        # Start Docker container
+        SHARED_FOLDER = temp_dir.name
+
+        cmd = f"docker run -dit -v {SHARED_FOLDER}:/v_folder --name mediapipe mediapipe:latest"
+        run_process(cmd)
+
+        # Download youtube video from given url
+
+        video_out = os.path.join(temp_dir.name, "vid.mp4")
+
+        cmd = f"youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4' '{url}' -o {video_out}"
+        run_process(cmd)
+
+        # Build and run the inference on the provided file
+        # Following instructions from
+        # https://github.com/google/mediapipe/tree/master/mediapipe/examples/desktop/youtube8m
+
+        cmd = "docker exec mediapipe python -m mediapipe.examples.desktop.youtube8m.generate_input_sequence_example \
+        --path_to_input_video=/v_folder/vid.mp4 \
+        --clip_end_time_sec=600"
+
+        run_process(cmd)
+
+        cmd = "docker exec mediapipe bazel build -c opt --linkopt=-s \
+        --define MEDIAPIPE_DISABLE_GPU=1 --define no_aws_support=true \
+        mediapipe/examples/desktop/youtube8m:extract_yt8m_features"
+
+        run_process(cmd)
+
+        cmd = "docker exec mediapipe bazel-bin/mediapipe/examples/desktop/youtube8m/extract_yt8m_features \
+        --calculator_graph_config_file=mediapipe/graphs/youtube8m/feature_extraction.pbtxt \
+        --input_side_packets=input_sequence_example=/tmp/mediapipe/metadata.pb  \
+        --output_side_packets=output_sequence_example=/v_folder/features.pb"
+
+        run_process(cmd)
+
+        # Because of the attached volume both the video and features file will available
+        # from the temp directory
+
+        features_file = os.path.join(temp_dir.name, "features.pb")
+
+        sequence_example = open(features_file, "rb").read()
+        example = tf.train.SequenceExample.FromString(sequence_example)
+
+        rgb_features = example.feature_lists.feature_list["RGB/feature/floats"].feature
+        audio_features = example.feature_lists.feature_list[
+            "AUDIO/feature/floats"
+        ].feature
+
+        rgb_features = np.array(list((f.float_list.value for f in rgb_features)))
+        audio_features = np.array(list((f.float_list.value for f in audio_features)))
+
+        # Calculate the elementwize mean for each list of lists
+        # to fit the format the models were trained on
+        mean_rgb = np.mean(rgb_features, axis=0)
+        mean_audio = np.mean(audio_features, axis=0)
+
+        return (mean_rgb, mean_audio)
+
+    finally:
+        # Clean up docker state
+        run_process("docker stop mediapipe")
+        run_process("docker container rm mediapipe")

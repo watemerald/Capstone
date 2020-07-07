@@ -6,7 +6,7 @@ from typer import Argument, Option
 
 from video_search.models.netvlad import NetVLADModel
 from video_search.models.simple_model import SimpleModel
-from video_search.utils import create_logger
+from video_search.utils import create_logger, url_to_mean_array
 
 app = typer.Typer()
 
@@ -132,6 +132,29 @@ def predict_model(
         m = SimpleModel()
 
     m.predict(**kwargs)
+
+
+@app.command("predict-url")
+def predict_url(
+    url: str,
+    weights_file: Optional[str] = Argument(None),
+    model: NeuralNetwork = Option(
+        NeuralNetwork.simple, "--model", "-m", case_sensitive=False
+    ),
+):
+    kwargs = locals()
+    log.info(f"Launching train function for model simple_model with arguments {kwargs}")
+    if model == NeuralNetwork.netvlad:
+        m = NetVLADModel()
+    else:
+        m = SimpleModel()
+
+    (rgb, audio) = url_to_mean_array(url)
+
+    pred = m.predict_single_video(
+        mean_rgb=rgb, mean_audio=audio, weights_file=weights_file
+    )
+    print(pred)
 
 
 if __name__ == "__main__":
