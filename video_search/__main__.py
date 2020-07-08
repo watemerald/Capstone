@@ -156,7 +156,12 @@ def predict_url(
     )
     import numpy as np
 
-    print(np.argsort(pred)[::-1])
+    # Reshape array to 1d list
+    pred = pred.reshape(-1)
+
+    ind = np.argpartition(pred, -20)[-20:]
+    print(ind)
+    print(pred[ind])
 
 
 if __name__ == "__main__":

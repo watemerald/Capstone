@@ -2,7 +2,7 @@ import os
 import math
 
 import tensorflow as tf
-from tensorflow.keras.layers import Layer, ReLU, Softmax, Input, concatenate
+from tensorflow.keras.layers import Layer, ReLU, Softmax, Input, concatenate, Dense
 from tensorflow.keras.models import Model
 
 import tensorflow.keras.backend as K
@@ -222,15 +222,13 @@ class MoE(Layer):
         gating_outputs = K.bias_add(gating_outputs, self.gating_bias)
         gating_outputs = Softmax()(gating_outputs)
 
-        gating_outputs = K.sum(
+        output = K.sum(
             expert_outputs
             * K.repeat_elements(
                 K.expand_dims(gating_outputs, axis=1), self.units, axis=1
             ),
             axis=2,
         )
-
-        output = Softmax()(gating_outputs)
 
         return output
 
@@ -270,7 +268,9 @@ class NetVLADModel(NeuralNet):
 
         x = MoE(OUTPUT_CLASSES, n_experts)(x)
 
-        out = ContextGating(name="output")(x)
+        x = ContextGating()(x)
+
+        out = Dense(OUTPUT_CLASSES, activation="sigmoid", name="output")(x)
 
         model = Model([in1, in2], out)
         model.compile(optimizer="adam", loss="categorical_crossentropy")
