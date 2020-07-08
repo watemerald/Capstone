@@ -6,7 +6,11 @@ from typer import Argument, Option
 
 from video_search.models.netvlad import NetVLADModel
 from video_search.models.simple_model import SimpleModel
-from video_search.utils import create_logger, url_to_mean_array
+from video_search.utils import (
+    create_logger,
+    label_id_to_name,
+    url_to_mean_array,
+)
 
 app = typer.Typer()
 
@@ -161,6 +165,7 @@ def predict_url(
 
     ind = np.argpartition(pred, -20)[-20:]
     print(ind)
+    print(list(map(label_id_to_name, ind)))
     print(pred[ind])
 
 

@@ -1,11 +1,15 @@
 import logging
 import os
+import re
 import shlex
 import subprocess
+from dataclasses import dataclass
 from functools import lru_cache
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
+import pandas
+import requests
 import tensorflow as tf
 
 
@@ -55,8 +59,49 @@ def create_logger(name: str, log_files: Union[List[str], str]) -> logging.Logger
     return log
 
 
+vocabulary = pandas.read_csv("video_search/vocabulary.csv")
+
+
+def label_id_to_name(label: int) -> Optional[str]:
+    """Converts a single label id number to its full Knowledge Graph Name
+    """
+
+    try:
+        a = vocabulary.loc[vocabulary["Index"] == label].iloc[0]["Name"]
+        if isinstance(a, str):
+            return a
+        return None
+    except IndexError:
+        # The model can extract 4716 classes, but the vocabulary only has 3863 classes
+        # In this case, just return None
+        return None
+
+
+def expand_vid_id(short_id: Union[bytes, str]) -> str:
+    """
+    """
+    # If the short_id is passed as bytes, that means that is was
+    # decoded from a TFRecord directly, in which case it's a UTF-8
+    # string
+    if isinstance(short_id, bytes):
+        short_id = short_id.decode("UTF-8")
+
+    url = f"http://data.yt8m.org/2/j/i/{short_id[:2]}/{short_id}.js"
+    val = requests.get(url)
+
+    # The return format looks like i("02ab","tvvJFX90eh0");
+    # with the short id on the left and full id on the right
+    match = re.match(r"i\(\"(?P<short_id>\w{4})\".\"(?P<full_id>\w+)\"\);", val.text)
+
+    return match.group("full_id")
+
+
+log = create_logger(__name__, "file.log")
+
+
 def run_process(cmd: str) -> subprocess.CompletedProcess:
-    return subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE)
+    log.info(cmd)
+    return subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, check=True)
 
 
 def url_to_mean_array(url: str) -> Tuple[np.array, np.array]:
@@ -72,9 +117,11 @@ def url_to_mean_array(url: str) -> Tuple[np.array, np.array]:
         (array, array): a tuple of numpy arrays, (rgb_features, audio_features)
 
     """
+
     try:
         # Create temporary directory to store the file
         temp_dir = "/tmp/video_search"
+        video_out = os.path.join(temp_dir, "vid.mp4")
 
         # Start Docker container
 
@@ -84,9 +131,6 @@ def url_to_mean_array(url: str) -> Tuple[np.array, np.array]:
         run_process(cmd)
 
         # Download youtube video from given url
-
-        video_out = os.path.join(temp_dir, "vid.mp4")
-
         cmd = f"youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4' '{url}' -o {video_out}"
         run_process(cmd)
 
@@ -109,7 +153,7 @@ def url_to_mean_array(url: str) -> Tuple[np.array, np.array]:
         run_process(cmd)
 
         cmd = "docker exec mediapipe \
-        GLOG_logtostderr=1 bazel-bin/mediapipe/examples/desktop/youtube8m/extract_yt8m_features \
+        bazel-bin/mediapipe/examples/desktop/youtube8m/extract_yt8m_features \
         --calculator_graph_config_file=mediapipe/graphs/youtube8m/feature_extraction.pbtxt \
         --input_side_packets=input_sequence_example=/tmp/mediapipe/metadata.pb  \
         --output_side_packets=output_sequence_example=/v_folder/features.pb"
@@ -138,9 +182,25 @@ def url_to_mean_array(url: str) -> Tuple[np.array, np.array]:
         mean_audio = np.mean(audio_features, axis=0)
 
         return (mean_rgb, mean_audio)
-
     finally:
         # Clean up docker state
         run_process("docker stop mediapipe")
         run_process("docker container rm mediapipe")
         run_process(f"rm {video_out}")
+        run_process("rm -f /tmp/video_search/features.pb")
+
+
+@dataclass
+class VideoInfo:
+    short_id: str
+    long_id: str
+    tags: List[str]
+
+
+def decode_tf_example(e: tf.train.Example) -> VideoInfo:
+    short_id = e.features.feature["id"].bytes_list.value[0]
+    labels = e.features.feature["labels"].int64_list.value
+
+    long_id = expand_vid_id(short_id)
+    tags = list(map(label_id_to_name, labels))
+    return VideoInfo(short_id=short_id.decode("UTF-8"), long_id=long_id, tags=tags,)
