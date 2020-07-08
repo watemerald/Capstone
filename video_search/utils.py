@@ -4,6 +4,7 @@ import re
 import shlex
 import subprocess
 from dataclasses import dataclass
+from enum import Enum
 from functools import lru_cache
 from typing import List, Optional, Tuple, Union
 
@@ -11,6 +12,13 @@ import numpy as np
 import pandas
 import requests
 import tensorflow as tf
+
+from video_search.models.shared import NeuralNet
+
+
+class NeuralNetwork(str, Enum):
+    simple = "simple"
+    netvlad = "netvlad"
 
 
 # Memoize the number of total records, as it's a very expensive operation to compute
@@ -188,6 +196,24 @@ def url_to_mean_array(url: str) -> Tuple[np.array, np.array]:
         run_process("docker container rm mediapipe")
         run_process(f"rm {video_out}")
         run_process("rm -f /tmp/video_search/features.pb")
+
+
+def predict_url(
+    url: str, model: NeuralNet, weights_file: Optional[str] = None, n_best: int = 20
+) -> np.array:
+    (rgb, audio) = url_to_mean_array(url)
+    pred = model.predict_single_video(
+        mean_rgb=rgb, mean_audio=audio, weights_file=weights_file
+    )
+
+    # Reshape array to 1d list
+    pred = pred.reshape(-1)
+
+    label_ids = np.argpartition(pred, -n_best)[-n_best:]
+    labels = list(map(label_id_to_name, label_ids))
+    probabilities = pred[label_ids]
+
+    return np.array(list(zip(label_ids, labels, probabilities)))
 
 
 @dataclass
