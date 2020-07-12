@@ -162,11 +162,14 @@ class NeuralNet:
                 model = self.build_model(**kwargs)
                 self.tensorboard.set_model(model)
             else:
+                # Import here instead of at the start to avoid a circular import with video_search.models.netvlad module
                 import video_search.models.netvlad as nv
 
                 # Load the latest weight file
                 latest = data["runs"][-1]
                 wfn = latest["file"]
+
+                # Specify the custom layers used in creating the NetVLAD model
                 model = tf.keras.models.load_model(
                     wfn,
                     custom_objects={
@@ -295,9 +298,10 @@ class NeuralNet:
         else:
             wfn = weights_file
 
+        # Import here instead of at the start to avoid a circular import with video_search.models.netvlad module
         import video_search.models.netvlad as nv
 
-        # model.load_weights(wfn)
+        # Specify the custom layers used in creating the NetVLAD model
         model = tf.keras.models.load_model(
             wfn,
             custom_objects={
@@ -389,9 +393,10 @@ class NeuralNet:
         else:
             wfn = weights_file
 
+        # Import here instead of at the start to avoid a circular import with video_search.models.netvlad module
         import video_search.models.netvlad as nv
 
-        # model.load_weights(wfn)
+        # Specify the custom layers used in creating the NetVLAD model
         model = tf.keras.models.load_model(
             wfn,
             custom_objects={
@@ -483,6 +488,14 @@ def mean_ap(pred: np.ndarray, actual: np.ndarray) -> float:
 
 
 def total_ap(batches: List[Tuple[int, float]]) -> Tuple[int, float]:
+    """Calculates total Mean Average precision, over a list of batch mAP's
+    Args:
+        batches: a list of (num_items, precision) for each of the batches conducted
+    Returns:
+        tuple:
+            int: total number of items across all batches
+            float: the total mAP
+    """
     total = 0
     running_ap = 1.0
     for (n, ap) in batches:

@@ -1,3 +1,8 @@
+"""A simple example website to show how the predictions worked
+
+Written using [streamlit](https://www.streamlit.io/)
+"""
+
 import pandas as pd
 import streamlit as st
 
