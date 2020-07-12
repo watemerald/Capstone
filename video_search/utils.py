@@ -3,7 +3,6 @@ import os
 import re
 import shlex
 import subprocess
-from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
 from typing import List, Optional, Tuple, Union
@@ -44,6 +43,14 @@ def count_records(folder: str, tp: str) -> int:
 
 
 def create_logger(name: str, log_files: Union[List[str], str]) -> logging.Logger:
+    """
+        Utility function to create a logger, setting up both file and stream handlers
+        Args:
+            name: what the logger name should be
+            log_files: file or list of files where to save the logs
+        Returns:
+            Logger: the logger to be used in printing
+    """
     log = logging.getLogger(name)
     log.setLevel(logging.INFO)
 
@@ -72,6 +79,12 @@ vocabulary = pandas.read_csv("video_search/vocabulary.csv")
 
 def label_id_to_name(label: int) -> Optional[str]:
     """Converts a single label id number to its full Knowledge Graph Name
+        Args:
+            label: a lebel id, such as one produced by a model
+        Returns:
+            None: No such index found (There are 4716 classes possible for the model to infer)
+                  but only 3800 of them have corresponding Knowledge Graph points
+            str: The full name of the knoledge graph item
     """
 
     try:
@@ -85,8 +98,18 @@ def label_id_to_name(label: int) -> Optional[str]:
         return None
 
 
-def expand_vid_id(short_id: Union[bytes, str]) -> str:
-    """
+def expand_vid_id(short_id: Union[bytes, str]) -> Optional[str]:
+    """Converts a short id to full YouTube video id
+
+        Connects to YouTube-8M servers , e.g. for short id ABCD, connect to:
+        http://data.yt8m.org/2/j/i/AB/ABCD.js
+        Sometimes videos are removed from the short_id->long_id lookup, in that case
+        return None
+        Args:
+            short_id: a UTF-8 string (as either str or bytes) of the short id
+        Returns:
+            str: the expanded full id
+            None: no match found
     """
     # If the short_id is passed as bytes, that means that is was
     # decoded from a TFRecord directly, in which case it's a UTF-8
@@ -96,6 +119,9 @@ def expand_vid_id(short_id: Union[bytes, str]) -> str:
 
     url = f"http://data.yt8m.org/2/j/i/{short_id[:2]}/{short_id}.js"
     val = requests.get(url)
+
+    if val.status_code != 200:
+        return None
 
     # The return format looks like i("02ab","tvvJFX90eh0");
     # with the short id on the left and full id on the right
@@ -108,6 +134,10 @@ log = create_logger(__name__, "file.log")
 
 
 def run_process(cmd: str) -> subprocess.CompletedProcess:
+    """Utility function to call a shell command
+        Args:
+            cmd: the command to run in a shell
+    """
     log.info(cmd)
     return subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, check=True)
 
@@ -201,7 +231,20 @@ def url_to_mean_array(url: str) -> Tuple[np.array, np.array]:
 def predict_url(
     url: str, model: NeuralNet, weights_file: Optional[str] = None, n_best: int = 20
 ) -> np.array:
+    """Make predictions on video located at url
+    Args:
+        url: the url the video is located at
+        model: the model to use in predictions
+        weights_file: the weights to load
+        n_best: the number of most probable results to return
+    Returns:
+        array(tuple(int, str, float)): a numpy array of tuples containing
+            information the id number, the category name, and the probability
+    """
+    # Dowenload the video and convert it to the appropriate format
     (rgb, audio) = url_to_mean_array(url)
+
+    # Run predictions using the provided model (and weights file)
     pred = model.predict_single_video(
         mean_rgb=rgb, mean_audio=audio, weights_file=weights_file
     )
@@ -209,24 +252,10 @@ def predict_url(
     # Reshape array to 1d list
     pred = pred.reshape(-1)
 
+    # Generate the n most probable label ids
     label_ids = np.argpartition(pred, -n_best)[-n_best:]
+    # Convert the ids to category names
     labels = list(map(label_id_to_name, label_ids))
     probabilities = pred[label_ids]
 
     return np.array(list(zip(label_ids, labels, probabilities)))
-
-
-@dataclass
-class VideoInfo:
-    short_id: str
-    long_id: str
-    tags: List[str]
-
-
-def decode_tf_example(e: tf.train.Example) -> VideoInfo:
-    short_id = e.features.feature["id"].bytes_list.value[0]
-    labels = e.features.feature["labels"].int64_list.value
-
-    long_id = expand_vid_id(short_id)
-    tags = list(map(label_id_to_name, labels))
-    return VideoInfo(short_id=short_id.decode("UTF-8"), long_id=long_id, tags=tags,)
