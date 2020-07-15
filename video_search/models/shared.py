@@ -117,10 +117,6 @@ class NeuralNet:
                 load_model: if true, load the latest weights file and train from it
         """
 
-        # Create a weights directory to save the checkpoint files
-        if not os.path.exists(self.WEIGHTS_DIR):
-            os.makedirs(self.WEIGHTS_DIR)
-
         # The number of records per batch
         batch = batch
 
@@ -166,11 +162,14 @@ class NeuralNet:
                 model = self.build_model(**kwargs)
                 self.tensorboard.set_model(model)
             else:
+                # Import here instead of at the start to avoid a circular import with video_search.models.netvlad module
                 import video_search.models.netvlad as nv
 
                 # Load the latest weight file
                 latest = data["runs"][-1]
                 wfn = latest["file"]
+
+                # Specify the custom layers used in creating the NetVLAD model
                 model = tf.keras.models.load_model(
                     wfn,
                     custom_objects={
@@ -299,9 +298,10 @@ class NeuralNet:
         else:
             wfn = weights_file
 
+        # Import here instead of at the start to avoid a circular import with video_search.models.netvlad module
         import video_search.models.netvlad as nv
 
-        # model.load_weights(wfn)
+        # Specify the custom layers used in creating the NetVLAD model
         model = tf.keras.models.load_model(
             wfn,
             custom_objects={
@@ -363,6 +363,56 @@ class NeuralNet:
                     columns=["VideoId", "LabelConfidencePairs"],
                     mode="a",
                 )
+
+    def predict_single_video(
+        self,
+        mean_rgb: np.array,
+        mean_audio: np.array,
+        weights_file: Optional[str] = None,
+    ) -> List[int]:
+        """
+        Runs predictions on a single video
+
+        Args:
+            mean_rgb: (None, 1024) Mean video-level visual features
+            mean_audio: (None, 128) Mean video-level audio features
+
+        returns:
+            list(int): a list of probable tag ids
+        """
+        try:
+            with open(self.DATA_FILE, "r") as f:
+                data = json.load(f)
+                best = data["best"]
+        except FileNotFoundError:
+            self.log.error("No weight files saved. Can't make predictions")
+            sys.exit(1)
+
+        if weights_file is None:
+            wfn = best["file"]
+        else:
+            wfn = weights_file
+
+        # Import here instead of at the start to avoid a circular import with video_search.models.netvlad module
+        import video_search.models.netvlad as nv
+
+        # Specify the custom layers used in creating the NetVLAD model
+        model = tf.keras.models.load_model(
+            wfn,
+            custom_objects={
+                "ContextGating": nv.ContextGating,
+                "NetVLAD": nv.NetVLAD,
+                "MoE": nv.MoE,
+            },
+        )
+        self.log.info(f"loaded weight file: {wfn}")
+
+        mean_rgb = np.array([mean_rgb])
+        mean_audio = np.array([mean_audio])
+
+        ypd = model.predict({"x1": mean_audio, "x2": mean_rgb}, verbose=1)
+
+        return ypd
 
 
 def ap_at_n(data: Tuple[np.ndarray, np.ndarray], n: Optional[int] = 20,) -> float:
@@ -438,6 +488,14 @@ def mean_ap(pred: np.ndarray, actual: np.ndarray) -> float:
 
 
 def total_ap(batches: List[Tuple[int, float]]) -> Tuple[int, float]:
+    """Calculates total Mean Average precision, over a list of batch mAP's
+    Args:
+        batches: a list of (num_items, precision) for each of the batches conducted
+    Returns:
+        tuple:
+            int: total number of items across all batches
+            float: the total mAP
+    """
     total = 0
     running_ap = 1.0
     for (n, ap) in batches:

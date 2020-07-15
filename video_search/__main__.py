@@ -1,12 +1,13 @@
-from enum import Enum
+import os
 from typing import Optional
 
+import streamlit.cli
 import typer
 from typer import Argument, Option
 
 from video_search.models.netvlad import NetVLADModel
 from video_search.models.simple_model import SimpleModel
-from video_search.utils import create_logger
+from video_search.utils import NeuralNetwork, create_logger, predict_url
 
 app = typer.Typer()
 
@@ -39,11 +40,6 @@ SIMPLE_MODEL_BLOCK_NEURONS = 1024
 # NetVLAD model parameters
 NETVLAD_CLUSTER_SIZE = 128
 NETVLAD_N_EXPERTS = 2
-
-
-class NeuralNetwork(str, Enum):
-    simple = "simple"
-    netvlad = "netvlad"
 
 
 @app.command("train")
@@ -132,6 +128,32 @@ def predict_model(
         m = SimpleModel()
 
     m.predict(**kwargs)
+
+
+@app.command("predict-url")
+def predict_url_command(
+    url: str,
+    weights_file: Optional[str] = Argument(None),
+    model: NeuralNetwork = Option(
+        NeuralNetwork.simple, "--model", "-m", case_sensitive=False
+    ),
+):
+    kwargs = locals()
+    log.info(f"Launching train function for model simple_model with arguments {kwargs}")
+    if model == NeuralNetwork.netvlad:
+        m = NetVLADModel()
+    else:
+        m = SimpleModel()
+
+    print(predict_url(url, m, weights_file=weights_file))
+
+
+@app.command("streamlit")
+def run_streamlit():
+    dirname = os.path.dirname(__file__)
+    filename = os.path.join(dirname, "streamlit.py")
+    args = []
+    streamlit.cli._main_run(filename, args)
 
 
 if __name__ == "__main__":

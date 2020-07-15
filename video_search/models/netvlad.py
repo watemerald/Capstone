@@ -2,7 +2,7 @@ import os
 import math
 
 import tensorflow as tf
-from tensorflow.keras.layers import Layer, ReLU, Softmax, Input, concatenate
+from tensorflow.keras.layers import Layer, ReLU, Softmax, Input, concatenate, Dense
 from tensorflow.keras.models import Model
 
 import tensorflow.keras.backend as K
@@ -15,12 +15,18 @@ from tensorflow.keras.initializers import RandomUniform, Zeros
 from video_search.utils import create_logger
 from video_search.models.shared import NeuralNet, AUDIO_DATA, VIDEO_DATA, OUTPUT_CLASSES
 
-log = create_logger(__name__, "file.log")
 
 TENSORBOARD_LOG_DIR = "logs/netvlad"
 WEIGHTS_DIR = os.path.join(TENSORBOARD_LOG_DIR, "weights/")
 DATA_FILE = os.path.join(TENSORBOARD_LOG_DIR, "data.json")
 
+# Create a weights directory to save the checkpoint files
+if not os.path.exists(WEIGHTS_DIR):
+    os.makedirs(WEIGHTS_DIR)
+
+log = create_logger(
+    __name__, ["file.log", os.path.join(TENSORBOARD_LOG_DIR, "netvlad.log")]
+)
 
 # Adapted from https://github.com/antoine77340/LOUPE/blob/master/loupe.py
 # Translated into custom keras layers
@@ -216,15 +222,13 @@ class MoE(Layer):
         gating_outputs = K.bias_add(gating_outputs, self.gating_bias)
         gating_outputs = Softmax()(gating_outputs)
 
-        gating_outputs = K.sum(
+        output = K.sum(
             expert_outputs
             * K.repeat_elements(
                 K.expand_dims(gating_outputs, axis=1), self.units, axis=1
             ),
             axis=2,
         )
-
-        output = Softmax()(gating_outputs)
 
         return output
 
@@ -264,7 +268,9 @@ class NetVLADModel(NeuralNet):
 
         x = MoE(OUTPUT_CLASSES, n_experts)(x)
 
-        out = ContextGating(name="output")(x)
+        x = ContextGating()(x)
+
+        out = Dense(OUTPUT_CLASSES, activation="sigmoid", name="output")(x)
 
         model = Model([in1, in2], out)
         model.compile(optimizer="adam", loss="categorical_crossentropy")

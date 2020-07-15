@@ -1,0 +1,46 @@
+{
+    "best": {
+        "iter": 6650,
+        "epoch": 17,
+        "map": 0.8406425912708307,
+        "ise": 207,
+        "file": "logs/simple/weights/0.84064_17_6650_207.h5"
+    },
+    "runs": [
+        {
+            "iter": 5950,
+            "epoch": 15,
+            "map": 0.8367348861373829,
+            "ise": 265,
+            "file": "logs/simple/weights/0.83673_15_5950_265.h5"
+        },
+        {
+            "iter": 6300,
+            "epoch": 16,
+            "map": 0.8386948659414154,
+            "ise": 236,
+            "file": "logs/simple/weights/0.83869_16_6300_236.h5"
+        },
+        {
+            "iter": 6650,
+            "epoch": 17,
+            "map": 0.8406425912708307,
+            "ise": 207,
+            "file": "logs/simple/weights/0.84064_17_6650_207.h5"
+        },
+        {
+            "iter": 7000,
+            "epoch": 18,
+            "map": 0.8395242505147329,
+            "ise": 178,
+            "file": "logs/simple/weights/0.83952_18_7000_178.h5"
+        },
+        {
+            "iter": 7350,
+            "epoch": 19,
+            "map": 0.8388606229533054,
+            "ise": 149,
+            "file": "logs/simple/weights/0.83886_19_7350_149.h5"
+        }
+    ]
+}
