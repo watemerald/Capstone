@@ -59,14 +59,23 @@ class NeuralNet:
                 index i ids[i], audio[i], rgb[i], labels[i] all correspond to the same records info
         """
         # TFRecord files
-        tfiles = sorted(glob.glob(os.path.join(media_folder, f"{tp}*tfrecord")))
+        gl = os.path.join(media_folder, f"{tp}*tfrecord")
+        tfiles = sorted(glob.glob(gl))
 
         self.log.info(f"total files in {tp} {len(tfiles)}")
 
         # Initialize the lists to store the ids, audio & visual information, and labels for the current batch
-        ids, aud, rgb, lbs = [], [], [], []
-        for fn in tfiles:
-            for example in tf.data.TFRecordDataset(fn).as_numpy_iterator():
+        for example_batch in (
+            tf.data.TFRecordDataset(tf.data.Dataset.list_files(gl))
+            .cache()
+            .repeat()
+            .shuffle(256)
+            .batch(batch)
+            .prefetch(tf.data.experimental.AUTOTUNE)
+            .skip(skip)
+        ):
+            ids, aud, rgb, lbs = [], [], [], []
+            for example in example_batch:
                 # Parse a single record from the dataset and extract all its values
                 tf_example = tf.train.Example.FromString(example)
 
@@ -91,15 +100,7 @@ class NeuralNet:
 
                 lbs.append(out)
 
-                # When the total number of ids reaches the batch number, yield the parsed values
-                # to be processed later
-                if len(ids) >= batch:
-                    # Every time a batch is finished, skip it if required
-                    skip -= 1
-                    if skip < 0:
-                        yield np.array(ids), np.array(aud), np.array(rgb), np.array(lbs)
-
-                    ids, aud, rgb, lbs = [], [], [], []
+            yield np.array(ids), np.array(aud), np.array(rgb), np.array(lbs)
 
     def train(
         self,
